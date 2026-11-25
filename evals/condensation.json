@@ -1,0 +1,887 @@
+[
+ {
+  "text": "المي بتنزّ من الكاسة لبرّا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "المي بتطلع من جوا الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "في ثقوب صغيرة بالكاسة والمي بتطلع منها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "الزجاج بيرشح مي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "المي بتتسرب من الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "لما نعبّي الكاسة كثير المي بتفيض من فوق وبتنزل على جوانبها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "الثلج بيذوب وبيطلع من الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "ice",
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "التلج ذاب ونزّ لبرّا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "ice",
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "الثلج لما يذوب بيصير مي وبتطلع من الزجاج",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "ice",
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "الكاسة بتعرق زيّنا لما نلعب",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_itself"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "الكاسة عرقانة من البرد",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_itself",
+   "cold_itself"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "البرد نفسه بيصير مي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "cold_itself"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "البرودة بتتحول لنقط مي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "cold_itself"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "لما الكاسة تكون باردة كثير البرد بيطلع منها على شكل مي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "cold_itself"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "يمكن حدا رشّ عليها مي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "spill_from_above"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "أكيد انكبّت مي عليها لما عبّيناها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "spill_from_above",
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "من نفَس الناس اللي حواليها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "people_breath"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "لما بنتنفّس قريب منها بيطلع مي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "people_breath"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "بتطلع لحالها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "appears_magic"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "هيك الكاسات بيصير فيها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "appears_magic",
+   "glass_itself"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "من الهوا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": "C3",
+  "split": "dev"
+ },
+ {
+  "text": "الهوا فيه مي وبتلزق ع الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": "C3",
+  "split": "dev"
+ },
+ {
+  "text": "الجو رطب فالمي بتيجي ع الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": "C3",
+  "split": "dev"
+ },
+ {
+  "text": "المي اللي بالهوا بتروح ع الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": "C3",
+  "split": "dev"
+ },
+ {
+  "text": "في مي بالهوا ما بنشوفها، ولما تلمس الكاسة الباردة بتبرد وبتصير نقط",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "الهوا فيه بخار مي وبيبرد لما يلمس الكاسة وبيتحول لنقط",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "بخار الماء بالهواء بيتكاثف على السطح البارد",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "الهوا الدافي فيه مي ولما يبرد ع الكاسة الباردة بتتجمع نقط",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "ما بعرف",
+  "status_any": [
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "مش عارف والله",
+  "status_any": [
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "امم",
+  "status_any": [
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "بدي ألعب فوتبول",
+  "status_any": [
+   "offtopic",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "شو اسمك؟",
+  "status_any": [
+   "offtopic",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "المي بتطلع من الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "الثلج بيخلي الكاسة تطلّع مي من جوا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "ice",
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "الكاسة بتبكي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_itself",
+   "appears_magic"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "المي بتعبر من الزجاج لأنه الزجاج فيه مسامات",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "لأنه الكاسة باردة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "cold_itself",
+   "appears_magic",
+   "glass_itself",
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "بخار من المي اللي جوا بيطلع من فوق وبينزل على الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "dev"
+ },
+ {
+  "text": "الهوا بيصير مي لما يبرد",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "اكيد المي بتطلع من الكاسه لانو في ثقوب ما بنشوفها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "الكاسة بتعرق متل لما احنا نعرق بالصيف",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_itself"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "التلج لما يدوب بيطلع برا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "ice",
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "بصراحه ما بعرف",
+  "status_any": [
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "هي المي بتطلع من الكاسة بس كيف ما بعرف",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المية بتنز من الزجاج عشان الزجاج رقيق",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "لما نحط تلج المي بتبرد وبتطلع لبرا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water",
+   "ice"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "البرودة بتطلع من الكاسة وبتصير مي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "cold_itself"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "في رطوبة بالجو وبتتجمع على الكاسة لانها باردة",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الجو فيه مي، والكاسة الباردة بتبرّد المي اللي بالجو فبتصير نقط",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "بخار الميه اللي بالهوا لما يلمس الكاسه البارده بيتحول لمي",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "عشان الكاسة باردة كتير",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "اخوي كب مي عليها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "spill_from_above"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "لما بنحكي قريب من الكاسة بيطلع نفسنا عليها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "people_breath"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "النقط بتيجي من السما",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "spill_from_above",
+   "appears_magic"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "بدي اروح الحمام",
+  "status_any": [
+   "offtopic",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "كيفك نور",
+  "status_any": [
+   "offtopic",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المي اللي جوا بتعرق من الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water",
+   "glass_itself"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "التلج بيعمل مي حوالين الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "ice"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "هاي مي من التلاجة",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الكاسة بتطلع مي لما تبرد",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_itself",
+   "cold_itself"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "لانو الهوا سخن والكاسة باردة",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المي بتتسرّب من تحت الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "الزجاج فيه مسامات صغيره والمي بتطلع منها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "مممم يمكن من الهوا؟",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": "C3",
+  "split": "holdout"
+ },
+ {
+  "text": "في مي بالهوا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": "C3",
+  "split": "holdout"
+ },
+ {
+  "text": "البخار",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المي بتطلع من الكاسة لانو التلج بيضغط عليها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water",
+   "ice"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "بتصير المي نقط لأن البرد بيجمعها من الهوا",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الندى",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "بتنزل نقط من المكيّف عليها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "spill_from_above"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "ما فيش نقط اصلا",
+  "status_any": [
+   "offtopic",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الكاسه بتبكي من البرد",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_itself"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "البرد بيتحول لنقط مي على الزجاج",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "cold_itself"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "مي الكاسة بتعدي من الزجاج لبرا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "لما الهوا يلمس الكاسة الباردة بيبرد والمي اللي فيه بتصير نقط",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "air_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "التلج بيذوب ومايته بتطلع من الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "ice",
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "بتطلع لحالها من ولا اشي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "appears_magic"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ },
+ {
+  "text": "من نفَس الناس لما بيتنفسوا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "people_breath"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الكاااسة بتنززز مي من جوااا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "inside_water"
+  ],
+  "broken_link": "C2",
+  "split": "holdout"
+ }
+]

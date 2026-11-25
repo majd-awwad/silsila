@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useReducer, useState } from 'react';
 import { initialState, reducer } from './flow/machine';
-import { POST_TEST, PRE_TEST } from './lesson/condensation';
+import { getPack } from './packs';
 import { Quiz } from './screens/Quiz';
 import { Summary } from './screens/Summary';
 import { Teacher } from './screens/Teacher';
@@ -33,13 +33,13 @@ export default function App() {
 
   switch (state.phase) {
     case 'welcome':
-      return <Welcome onStart={(pseudonym, grade) => dispatch({ type: 'START', pseudonym, grade })} />;
+      return <Welcome onStart={(st) => dispatch({ type: 'START', ...st })} />;
     case 'pretest':
       return (
         <Quiz
           key="pre" title="قبل ما نبلّش: ٤ أسئلة"
           intro="جاوب زي ما بتفكّر. مش امتحان، ولا في علامة."
-          questions={PRE_TEST} onDone={(result) => dispatch({ type: 'PRE_DONE', result })}
+          questions={getPack(state.session?.pack).preTest} onDone={(result) => dispatch({ type: 'PRE_DONE', result })}
         />
       );
     case 'lab':
@@ -53,7 +53,7 @@ export default function App() {
         <Quiz
           key="post" title="آخر خطوة: ٤ أسئلة"
           intro="هلأ بعد ما جرّبت وعلّمت نور، جاوب هالأسئلة."
-          questions={POST_TEST} onDone={(result) => dispatch({ type: 'POST_DONE', result })}
+          questions={getPack(state.session?.pack).postTest} onDone={(result) => dispatch({ type: 'POST_DONE', result })}
         />
       );
     case 'summary':

@@ -133,3 +133,45 @@ button, input, textarea, select { font-family: inherit; }
   .pill .lbl { display: none; }
   .lab-top { gap: 8px; padding: 8px; }
 }
+
+/* ---------- Lite (2D) scene ---------- */
+.lite-scene { display: grid; place-items: center; padding: 140px 420px 110px 380px; }
+.lite-worlds { display: flex; gap: 32px; width: 100%; max-width: 620px; justify-content: center; }
+.lite-world { margin: 0; flex: 1; max-width: 280px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lite-glass { width: 100%; aspect-ratio: 140 / 230; max-height: 46vh; }
+@media (max-width: 1100px) { .lite-scene { padding: 130px 16px 48vh; } .lite-glass { max-height: 30vh; } }
+
+/* ---------- counterfactual lab controls ---------- */
+.lab-controls { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 5; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; max-width: calc(100% - 820px); min-width: 440px; }
+.lab-vars { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.var { display: flex; flex-direction: column; gap: 4px; }
+.var > span { font-size: 11.5px; color: var(--ink-2); font-weight: 600; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { height: 32px; padding: 0 10px; border: 0; background: transparent; color: var(--ink-2); font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: rgba(92, 225, 230, .16); color: var(--ink); }
+.lab-presets { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; align-items: center; }
+.lab-presets button { flex: none; height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--ink-2); font-size: 12.5px; cursor: pointer; }
+.lab-presets button.best { border-color: rgba(255, 181, 71, .6); color: var(--warm); }
+@media (max-width: 1100px) {
+  .lab-controls { top: 72px; bottom: auto; max-width: calc(100% - 20px); min-width: 0; width: calc(100% - 20px); padding: 8px; }
+  .lab-vars { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+}
+
+/* ---------- causal chains ---------- */
+.chainview { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.chainview ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.chainview li { font-size: 12px; line-height: 1.45; padding: 6px 8px; border-radius: 9px; border: 1px solid var(--line); position: relative; }
+.chainview li + li::before { content: '↓'; position: absolute; top: -13px; inset-inline-start: 50%; font-size: 10px; color: var(--ink-2); }
+.chainview .kid li { border-color: rgba(255, 181, 71, .45); }
+.chainview .kid li.wrong { border-color: var(--bad); color: var(--bad); background: rgba(255,154,118,.1); }
+.chainview .sci li { border-color: rgba(92, 225, 230, .45); }
+.chainview h4 { margin: 0 0 4px; font-size: 11.5px; color: var(--ink-2); font-weight: 600; }
+.msg.challenge { align-self: flex-start; max-width: 92%; background: rgba(92, 225, 230, .1); border: 1px solid rgba(92, 225, 230, .45); color: var(--ink); }
+.msg.challenge.ok { border-color: rgba(94, 230, 168, .55); background: rgba(94, 230, 168, .1); }
+
+/* ---------- learning DNA ---------- */
+.dna { display: grid; grid-template-columns: auto repeat(2, 1fr); gap: 4px; font-size: 12px; align-items: center; }
+.dna .cell { height: 22px; border-radius: 6px; border: 1px solid var(--line); }
+.dna .cell.ok { background: rgba(94, 230, 168, .55); border-color: transparent; }
+.dna .cell.bad { background: rgba(255, 154, 118, .55); border-color: transparent; }
+.dna .h { color: var(--ink-2); font-size: 11px; text-align: center; }

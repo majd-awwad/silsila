@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { QuizResult } from '../contracts';
-import type { QuizQuestion } from '../lesson/condensation';
+import type { QuizQuestion } from '../packs/types';
 
 const fmt = (n: number) => n.toLocaleString('ar-EG');
 

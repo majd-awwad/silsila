@@ -25,10 +25,11 @@ export async function deleteSession(id: string): Promise<void> {
   await del(id, store);
 }
 
-export function newSession(pseudonym: string, grade: number): Session {
+export function newSession(pack: string, pseudonym: string, grade: number): Session {
   return {
     id: (crypto.randomUUID?.() ?? String(Date.now())) as string,
-    pseudonym, grade, startedAt: Date.now(), finishedAt: null,
-    pre: null, post: null, explanations: [], experiments: [], teach: null, demo: false,
+    pack, pseudonym, grade, startedAt: Date.now(), finishedAt: null,
+    pre: null, post: null, explanations: [], experiments: [], teach: null,
+    challenge: null, transfer: null, classCode: null, quick: false, demo: false,
   };
 }

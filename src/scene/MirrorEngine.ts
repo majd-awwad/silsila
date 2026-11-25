@@ -2,16 +2,17 @@
  * المرآة — the 3D engine. Owned by the scene person. Knows nothing about React.
  *
  * Public API (the whole contract with the rest of the app):
- *   new MirrorEngine(container, { quality })
+ *   new MirrorEngine(container, { quality, pack })
  *   setModel(model | null)          draw the child's idea in "عالم فكرتك"
- *   runExperiment(exp)              'base' = one glass; any ExperimentId = split into two worlds
+ *   run(cond, split)                show these experiment conditions; split = two worlds side by side
  *   setOutcomes(kidText, realText)  badges under each world after an experiment
  *   setNoorState(state)             idle | thinking | talking | happy
  *   dispose()
  *
- * The child's world is composed from the model's sources/path (emitters), and its predicted
- * outcome for the current experiment decides how many drops and what colour.
- * The real world runs a small vapour simulation driven by the dew point (Magnus formula).
+ * The child's world is composed from the model's sources/path (emitters); how much happens there comes
+ * from pack.kidOutcome (the deterministic engine), so the picture always agrees with the brain panel.
+ * Condensation: the real world runs a small vapour simulation driven by the dew point (Magnus formula).
+ * Evaporation: water level, vapour leaving the surface, lid, sun, warmth and a napkin under the glass.
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -22,10 +23,11 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import type { ChildModel, SceneExperiment } from '../contracts';
+import type { ChildModel, Conditions } from '../contracts';
+import type { ConceptPack } from '../packs/types';
 
 export type NoorState = 'idle' | 'thinking' | 'talking' | 'happy';
-export interface EngineOptions { quality?: 'high' | 'low' }
+export interface EngineOptions { quality?: 'high' | 'low'; pack: ConceptPack }
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -54,7 +56,7 @@ const WATER: Record<'clear' | 'blue' | 'warm', WaterLook> = {
   warm: { c: new THREE.Color(0xfff1e2), a: new THREE.Color(0xffe2c4), d: 3.0 },
 };
 
-type Behaviour = 'leak' | 'rim' | 'vapor' | 'spark' | 'drip' | 'breath';
+type Behaviour = 'leak' | 'rim' | 'vapor' | 'spark' | 'drip' | 'breath' | 'rise' | 'absorb' | 'seep' | 'pull';
 interface Drop { on: boolean; th: number; y: number; s: number; ts: number; blue: boolean }
 interface Particle {
   on: boolean; beh: Behaviour; col: THREE.Color | null; t: number; th: number;
@@ -67,18 +69,27 @@ interface World {
   waterMat: THREE.MeshPhysicalMaterial; water: THREE.Mesh; ice: THREE.Mesh[]; iceBase: number[];
   lid: THREE.Mesh; aura: THREE.Mesh[]; dropMesh: THREE.InstancedMesh; partMesh: THREE.InstancedMesh;
   tag: CSS2DObject; outEl: HTMLElement;
+  /* evaporation props */
+  level: number; napkin: THREE.Mesh; napkinMat: THREE.MeshStandardMaterial; wet: number; sun: THREE.Mesh; puddle: THREE.Mesh;
 }
 
-function conditions(exp: SceneExperiment) {
-  const warm = exp === 'E_warm';
-  const hum = exp === 'E_dry' ? 22 : 80;
-  const waterT = warm ? 25 : exp === 'E_empty' ? -4 : 3;
+/** condensation: conditions → what the scene shows; the real rate comes from the dew point (Magnus) */
+function conditions(c: Conditions) {
+  const warm = c.temp === 'room';
+  const empty = c.contents === 'empty';
+  const hum = c.air === 'dry' ? 22 : 80;
+  const waterT = warm ? 25 : empty ? -4 : 3;
   const a = 17.27, b = 237.7, air = 25;
   const g = Math.log(hum / 100) + (a * air) / (b + air);
   const dew = (b * g) / (a - g);
   const surf = waterT + 0.25 * (air - waterT);
-  return { warm, empty: exp === 'E_empty', color: exp === 'E_color', cover: exp === 'E_cover', hum, rate: clamp((dew - surf) / 8, 0, 1) };
+  return { warm, empty, color: c.contents === 'blue', cover: c.lid === 'on', hum, rate: clamp((dew - surf) / 8, 0, 1) };
 }
+
+const LEVEL_RATE: Record<string, number> = { stays: 0, slow: 0.018, fast: 0.055, wet: 0.045 };
+const MIN_LEVEL = 0.32;
+const WARM_RING = new THREE.Color(1.0, 0.62, 0.25).multiplyScalar(1.6);
+const COLD_RING = new THREE.Color(0.55, 0.8, 1.0).multiplyScalar(1.5);
 
 export class MirrorEngine {
   private renderer: THREE.WebGLRenderer;
@@ -103,7 +114,8 @@ export class MirrorEngine {
   private disposed = false;
 
   private model: ChildModel | null = null;
-  private exp: SceneExperiment = 'base';
+  private pack: ConceptPack;
+  private cond: Conditions;
   private split = false;
   private noorState: NoorState = 'idle';
 
@@ -112,8 +124,10 @@ export class MirrorEngine {
   private SC = new THREE.Vector3(); private N = new THREE.Vector3(); private Z = new THREE.Vector3(0, 0, 1);
   private I = new THREE.Quaternion(); private tc = new THREE.Color();
 
-  constructor(private container: HTMLElement, opts: EngineOptions = {}) {
+  constructor(private container: HTMLElement, opts: EngineOptions) {
     const low = opts.quality === 'low';
+    this.pack = opts.pack;
+    this.cond = { ...opts.pack.baseline };
     this.renderer = new THREE.WebGLRenderer({ antialias: !low, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, low ? 1 : 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -148,8 +162,8 @@ export class MirrorEngine {
     const noorParts = this.buildNoor();
     this.eyeMat = noorParts.eyeMat; this.mouth = noorParts.mouth; this.tip = noorParts.tip;
 
-    this.setVisuals(this.kid, 'base');
-    this.setVisuals(this.realW, 'base');
+    this.setVisuals(this.kid);
+    this.setVisuals(this.realW);
 
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(container);
@@ -164,12 +178,12 @@ export class MirrorEngine {
     this.wipe(this.kid);
   }
 
-  runExperiment(exp: SceneExperiment) {
-    this.exp = exp;
+  run(cond: Conditions, split: boolean) {
+    this.cond = { ...this.pack.baseline, ...cond };
     this.wipe(this.kid); this.wipe(this.realW);
-    this.setVisuals(this.kid, exp); this.setVisuals(this.realW, exp);
+    this.setVisuals(this.kid); this.setVisuals(this.realW);
     this.setOutcomes('', '');
-    this.setSplit(exp !== 'base');
+    this.setSplit(split);
   }
 
   setOutcomes(kidText: string, realText: string) {
@@ -261,12 +275,22 @@ export class MirrorEngine {
       P.push({ on: false, beh: 'spark', col: null, t: 0, th: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, r: 0, sp: 0, stage: 0, stopY: 0, life: 0, blue: false, slow: 0 });
     }
     g.add(partMesh);
+    const napkinMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 1, envMapIntensity: 0.4 });
+    const napkin = new THREE.Mesh(new THREE.CircleGeometry(0.82, 64), napkinMat);
+    napkin.rotation.x = -Math.PI / 2; napkin.position.y = 0.004; napkin.visible = false; napkin.receiveShadow = true; g.add(napkin);
+    const puddle = new THREE.Mesh(new THREE.RingGeometry(0.56, 0.9, 64), new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, transmission: 0.6, roughness: 0.05, transparent: true, opacity: 0 }));
+    puddle.rotation.x = -Math.PI / 2; puddle.position.y = 0.006; g.add(puddle);
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.0, 0.78, 0.3).multiplyScalar(2.2), toneMapped: false }));
+    sun.position.set(0.95, 2.55, 0.35); sun.visible = false; g.add(sun);
     const el = document.createElement('div');
     el.className = 'mirror-tag' + (isReal ? ' real' : '');
     el.innerHTML = `<span class="name">${isReal ? 'العالم الحقيقي' : 'عالم فكرتك'}</span><span class="out"></span>`;
     const tag = new CSS2DObject(el); tag.position.set(0, 2.05, 0); tag.center.set(0.5, 1); g.add(tag);
     this.scene.add(g);
-    return { real: isReal, g, D, P, spawnAcc: 0, targetX: 0, targetScale: 1, targetWater: WATER.clear, waterMat, water, ice, iceBase, lid, aura, dropMesh, partMesh, tag, outEl: el.querySelector('.out') as HTMLElement };
+    return {
+      real: isReal, g, D, P, spawnAcc: 0, targetX: 0, targetScale: 1, targetWater: WATER.clear, waterMat, water, ice, iceBase, lid, aura, dropMesh, partMesh,
+      tag, outEl: el.querySelector('.out') as HTMLElement, level: 1, napkin, napkinMat, wet: 0, sun, puddle,
+    };
   }
 
   private buildNoor() {
@@ -323,13 +347,27 @@ export class MirrorEngine {
   }
 
   /* ================= simulation ================= */
-  private wipe(w: World) { w.D.forEach((d) => (d.on = false)); w.P.forEach((p) => (p.on = false)); }
+  private wipe(w: World) {
+    w.D.forEach((d) => (d.on = false)); w.P.forEach((p) => (p.on = false));
+    w.level = 1; w.wet = 0;
+  }
 
-  private setVisuals(w: World, exp: SceneExperiment) {
-    const c = conditions(exp);
+  private setVisuals(w: World) {
+    if (this.pack.scene === 'evaporation') {
+      const c = this.cond;
+      w.water.visible = true;
+      w.ice.forEach((m) => (m.visible = false));
+      w.lid.visible = c.lid === 'closed';
+      w.napkin.visible = c.napkin === 'yes';
+      w.sun.visible = c.sun === 'yes';
+      w.targetWater = c.place === 'warm' ? WATER.warm : WATER.clear;
+      return;
+    }
+    const c = conditions(this.cond);
     w.water.visible = !c.empty;
     w.ice.forEach((m) => (m.visible = !c.warm && !c.empty));
     w.lid.visible = c.cover;
+    w.napkin.visible = false; w.sun.visible = false;
     w.targetWater = c.color ? WATER.blue : c.warm ? WATER.warm : WATER.clear;
   }
 
@@ -351,9 +389,9 @@ export class MirrorEngine {
   }
 
   private kidBehaviours() {
-    const c = conditions(this.exp);
+    const c = conditions(this.cond);
     const m = this.model;
-    const pred = !m ? 'drops' : this.exp === 'base' ? 'drops' : m.predictions[this.exp];
+    const pred = !m ? 'drops' : this.pack.kidOutcome(m, this.cond);
     const rate = pred === 'none' ? 0 : pred === 'fewer' ? 0.3 : 1;
     const blue = pred === 'blue';
     const list: string[] = [];
@@ -438,7 +476,7 @@ export class MirrorEngine {
   }
 
   private stepReal(dt: number) {
-    const w = this.realW, c = conditions(this.exp);
+    const w = this.realW, c = conditions(this.cond);
     const want = Math.round(NP * (0.25 + (0.75 * c.hum) / 80));
     let live = w.P.reduce((n, p) => n + (p.on ? 1 : 0), 0);
     while (live < want) {
@@ -496,6 +534,101 @@ export class MirrorEngine {
     if (w.partMesh.instanceColor) w.partMesh.instanceColor.needsUpdate = true;
   }
 
+
+  /* ================= evaporation ================= */
+  private surfaceY(w: World) { return 1.22 * w.level; }
+
+  private evapCommon(w: World, dt: number, out: string, leak: boolean) {
+    const c = this.cond;
+    w.level = Math.max(MIN_LEVEL, w.level - (LEVEL_RATE[out] ?? 0) * dt);
+    if (out === 'wet') w.wet = Math.min(1, w.wet + dt * 0.35);
+    w.napkinMat.color.setRGB(0.957 - 0.33 * w.wet, 0.965 - 0.25 * w.wet, 0.973 - 0.18 * w.wet);
+    const pm = w.puddle.material as THREE.MeshPhysicalMaterial;
+    pm.opacity += ((leak && c.napkin !== 'yes' ? 0.5 : 0) - pm.opacity) * Math.min(1, dt * 0.8);
+    const now = performance.now() / 1000;
+    w.aura.forEach((a, i) => {
+      const k = ((now + i * 0.6) % 1.8) / 1.8;
+      a.scale.setScalar(1 + k * 0.6); a.position.y = 0.2 + i * 0.5;
+      const mat = a.material as THREE.MeshBasicMaterial;
+      mat.color.copy(c.place === 'warm' ? WARM_RING : COLD_RING);
+      mat.opacity = (1 - k) * 0.35;
+    });
+  }
+
+  private spawnRise(w: World, col: THREE.Color, life = 0) {
+    const surf = this.surfaceY(w), th = Math.random() * Math.PI * 2, r = rnd(0, rIn(surf) * 0.85);
+    this.spawn(w, 'rise', col, { x: Math.cos(th) * r, y: surf + 0.01, z: Math.sin(th) * r, vx: rnd(-0.04, 0.04), vy: rnd(0.25, 0.45), vz: rnd(-0.04, 0.04), life });
+  }
+
+  private stepEvapKid(dt: number) {
+    const w = this.kid, c = this.cond, m = this.model;
+    const sources = m ? m.sources : ['vanishes'];
+    const out = m ? this.pack.kidOutcome(m, c) : 'fast';
+    this.evapCommon(w, dt, out, sources.includes('leak_bottom'));
+    const closed = c.lid === 'closed';
+    const emit = out === 'stays' ? (closed ? 0.35 : 0) : out === 'slow' ? 0.45 : 1;
+    w.spawnAcc += dt * 22 * emit;
+    while (w.spawnAcc > 1) {
+      w.spawnAcc -= 1;
+      const s = sources[Math.floor(Math.random() * sources.length)];
+      const surf = this.surfaceY(w), th = Math.random() * Math.PI * 2;
+      if (s === 'to_vapor' || s === 'air_takes') this.spawnRise(w, VAPOR_FAST);
+      else if (s === 'glass_drinks') this.spawn(w, 'absorb', C_BLUE_GLOW, { th, y: rnd(0.15, surf - 0.05), r: rnd(0, 0.3), sp: rnd(0.15, 0.25) });
+      else if (s === 'leak_bottom') this.spawn(w, 'seep', C_BLUE_GLOW, { th, y: 0.014, r: 0.56, sp: rnd(0.12, 0.2) });
+      else if (s === 'sun_pulls') { if (c.sun === 'yes') this.spawnRise(w, SPARK_GOLD); }
+      else this.spawnRise(w, SPARK_GOLD, 0.5);
+    }
+    this.stepEvapParticles(w, dt);
+    this.draw(w, dt, -1);
+  }
+
+  private stepEvapReal(dt: number) {
+    const w = this.realW, c = this.cond;
+    const out = this.pack.realOutcome(c);
+    this.evapCommon(w, dt, out, false);
+    const emit = out === 'stays' ? 0.35 : out === 'slow' ? 0.4 : 1;
+    w.spawnAcc += dt * 22 * emit;
+    while (w.spawnAcc > 1) { w.spawnAcc -= 1; this.spawnRise(w, VAPOR_FAST); }
+    this.stepEvapParticles(w, dt);
+    this.draw(w, dt, -1);
+  }
+
+  private stepEvapParticles(w: World, dt: number) {
+    const closed = this.cond.lid === 'closed';
+    const surf = this.surfaceY(w);
+    const sunP = w.sun.position;
+    for (const p of w.P) {
+      if (!p.on) continue;
+      p.t += dt;
+      if (p.beh === 'rise') {
+        if (p.col === SPARK_GOLD && w.sun.visible && p.life === 0) {
+          // pulled toward the sun
+          this.V.set(sunP.x - p.x, sunP.y - p.y, sunP.z - p.z);
+          const d = this.V.length();
+          if (d < 0.15) { p.on = false; continue; }
+          this.V.multiplyScalar(0.9 / d);
+          p.x += this.V.x * dt; p.y += this.V.y * dt; p.z += this.V.z * dt;
+          continue;
+        }
+        p.vx += rnd(-0.2, 0.2) * dt; p.vz += rnd(-0.2, 0.2) * dt; p.vy += 0.05 * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+        const r = Math.hypot(p.x, p.z);
+        if (p.y < 1.6 && r > rIn(p.y) - 0.02) { p.vx *= -1; p.vz *= -1; }
+        if (closed && p.y > 1.57) p.vy = -Math.abs(p.vy) * 0.8;
+        if (p.y < surf) p.vy = Math.abs(p.vy);
+        if (p.y > 2.9 || (p.life > 0 && p.t > p.life)) p.on = false;
+      } else if (p.beh === 'absorb') {
+        p.r += p.sp * dt;
+        p.x = Math.cos(p.th) * p.r; p.z = Math.sin(p.th) * p.r;
+        if (p.r > rIn(p.y) - 0.01) p.on = false;
+      } else if (p.beh === 'seep') {
+        p.r += p.sp * dt;
+        p.x = Math.cos(p.th) * p.r; p.z = Math.sin(p.th) * p.r;
+        if (p.r > 0.95) p.on = false;
+      }
+    }
+  }
+
   /* ================= loop ================= */
   private frame() {
     if (this.disposed) return;
@@ -518,9 +651,15 @@ export class MirrorEngine {
       w.waterMat.attenuationDistance += (tw.d - w.waterMat.attenuationDistance) * k;
       if (!this.reduced) w.ice.forEach((m, i) => { m.position.y = w.iceBase[i] + Math.sin(t * 0.9 + i * 2) * 0.012; m.rotation.y += dt * 0.05; });
     }
-    this.stepKid(dt);
-    if (this.split) this.stepReal(dt);
-    else { this.realW.partMesh.count = 0; this.realW.dropMesh.count = 0; }
+    for (const w of [this.kid, this.realW]) w.water.scale.y = w.level;
+    if (this.pack.scene === 'evaporation') {
+      this.stepEvapKid(dt);
+      if (this.split) this.stepEvapReal(dt);
+    } else {
+      this.stepKid(dt);
+      if (this.split) this.stepReal(dt);
+    }
+    if (!this.split) { this.realW.partMesh.count = 0; this.realW.dropMesh.count = 0; }
     this.animateNoor(dt, t);
     this.composer.render();
     this.labels.render(this.scene, this.camera);

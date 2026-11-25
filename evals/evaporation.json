@@ -1,0 +1,265 @@
+[
+ {
+  "text": "الكاسة شربت المي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_drinks"
+  ],
+  "broken_link": null,
+  "split": "dev"
+ },
+ {
+  "text": "المي نزت من تحت الكاسة",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "leak_bottom"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الشمس سحبت المي لفوق",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "sun_pulls"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الهوا اخد المي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_takes"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المي اختفت",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [
+   "vanishes"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "اخوي شربها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "someone_drank"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المي صارت بخار وطلعت بالهوا لانو الجو دافي",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "to_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "لما المي تسخن بتتبخر وبتطير بالهوا",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "to_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "ما بعرف وين راحت",
+  "status_any": [
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الزجاج امتص المي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_drinks"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "في ثقب صغير تحت",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "leak_bottom"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الشمس",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [
+   "sun_pulls"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "تبخرت",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "to_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "راحت عالسما",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "بتختفي لحالها كل يوم شوي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "vanishes"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "القطة شربتها",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "someone_drank"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الحرارة بتخلي المي تصير غاز وتطلع للجو",
+  "status_any": [
+   "correct"
+  ],
+  "sources_any": [
+   "to_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الكاسة بتمص المي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "glass_drinks"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المي بتطلع لفوق",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "to_vapor",
+   "air_takes"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "الشمس بتشفط المي",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "sun_pulls"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "بدي العب",
+  "status_any": [
+   "offtopic",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المي راحت بالهوا",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "air_takes",
+   "to_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "المي نشفت",
+  "status_any": [
+   "model",
+   "clarify"
+  ],
+  "sources_any": [],
+  "broken_link": null,
+  "split": "holdout"
+ },
+ {
+  "text": "بتصير بخار",
+  "status_any": [
+   "model"
+  ],
+  "sources_any": [
+   "to_vapor"
+  ],
+  "broken_link": null,
+  "split": "holdout"
+ }
+]

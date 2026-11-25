@@ -1,124 +1,182 @@
 /**
- * The words that make Claude the brain of سلسلة. Owned by the brain person.
- * Every call is stateless: the context (phase, earlier ideas, experiments run) is sent each time.
- * Output is forced through a tool so it always comes back as JSON of the right shape.
+ * The words that make Claude the brain of سلسلة. Built from the ConceptPack, so a new pack needs no prompt code.
+ * The AI interprets language only. Experiment results come from src/brain/world.ts, never from the model.
+ * Every call is stateless; output is forced through a tool so it always comes back as JSON.
  */
 import type { BrainContext } from '../contracts';
-import { CHAIN_IDS, EXPERIMENT_IDS, PATH_IDS, SOURCE_IDS } from '../contracts';
-import { EXPERIMENTS, NOOR } from '../lesson/condensation';
+import { CHAIN_IDS } from '../contracts';
+import type { ConceptPack } from '../packs/types';
 
-export const DIAGNOSE_SYSTEM = `You are the reasoning engine of «سلسلة» (Silsila), a Palestinian primary-school science app.
-A child (age 8–11) explains, in Palestinian Arabic, why water droplets appear on the OUTSIDE of a cold glass of water with ice.
-The app draws the child's OWN idea in 3D (even when wrong), finds the first broken link in their concept chain, and lets an experiment contradict the idea. A small robot called Noor (نور, female) talks to the child.
+const list = (o: Record<string, { ai: string }>) => Object.entries(o).map(([k, v]) => `${k} (${v.ai})`).join(', ');
 
-Your job for each message: build a faithful MODEL of what THIS child believes, from their words only, and write Noor's next line.
+export function diagnoseSystem(p: ConceptPack): string {
+  return `You are the reasoning engine of «سلسلة» (Silsila), a Palestinian primary-school science app.
+A child (age 8–11) explains, in Palestinian Arabic, this question: «${p.question}»
+The app draws the child's OWN idea (even when wrong), shows their causal chain next to the scientific one, and lets the child run experiments in two worlds: their idea's world and the real world. A small robot called Noor (نور, female) talks to the child.
 
-Status:
+Your job: build a faithful MODEL of what THIS child believes, from their words only, and write Noor's next line. Do NOT predict experiment results: code computes those.
+
+status:
 - "model": the child gave an idea we can draw (any idea, however unusual).
-- "correct": the idea has all three: water (vapour) is in the air; it cools when it touches the cold glass; it becomes droplets. Everyday words count (المي اللي بالهوا = vapour). Do not reward vocabulary without the idea.
-- "clarify": too vague, "ما بعرف", or only a fragment. Noor asks ONE simple question.
-- "offtopic": unrelated to the glass. Noor brings them back kindly.
+- "correct": the idea contains all three scientific steps: (1) ${p.scienceChain[0]} (2) ${p.scienceChain[1]} (3) ${p.scienceChain[2]}. Everyday words count. Do not reward vocabulary without the idea.
+- "clarify": too vague, "ما بعرف", a fragment, or you are unsure what they mean. Noor asks ONE simple question. If the child already got a clarify before, make the question more concrete (offer two options).
+- "offtopic": unrelated to the question. Noor brings them back kindly.
 
-Model vocabulary (describe the CHILD's idea, not the truth):
-- sources (1–2): inside_water (the water in the glass gets out), ice (melting ice gets out), air_vapor (water from the air), cold_itself (the coldness turns into water), glass_itself (the glass makes/sweats water), spill_from_above (someone/something spills or drips water on it), people_breath (people's breath), appears_magic (it just appears / no cause).
-- path: through_wall (passes through the glass), over_rim (goes over the top and runs down), from_air (comes from the surrounding air onto the surface), appears_on_surface (forms right on the surface), falls_from_above (drops onto it from above).
-- needs_cold: true if, in the child's idea, drops happen only because it is cold.
+Model vocabulary (the CHILD's idea, not the truth):
+- sources (1–2): ${list(p.sources)}
+- path (one): ${list(p.paths)}
+- requires (0–2): ${list(p.requires)}
 
-Concept chain: C1 water can be liquid or invisible gas · C2 air contains invisible water vapour · C3 that vapour cools when it touches a cold surface · C4 cooled vapour becomes droplets · C5 the same thing makes dew and clouds. Mark each ok / missing / wrong / unknown from the child's words. broken_link = the first link that is missing or wrong (null only if status is correct).
+child_chain: the child's own causal story as 2–4 very short steps in Palestinian Arabic, in THEIR logic (e.g. «المي اللي جوّا» → «بتعبر من الزجاج» → «بتصير نقط برّا»). wrong_step: index of the first step that is scientifically wrong, or null.
 
-Predictions: what the CHILD's idea (not reality) says will happen in each experiment:
-${EXPERIMENT_IDS.map((e) => `- ${e}: ${EXPERIMENTS[e].name}`).join('\n')}
-Reality (for choosing best_experiment only): ${EXPERIMENT_IDS.map((e) => `${e}→${EXPERIMENTS[e].real}`).join(', ')}.
-best_experiment = the experiment whose real result most clearly contradicts the child's idea, preferring ones not run yet. null if correct.
+Concept chain: ${CHAIN_IDS.map((c) => `${c} ${p.chain[c].ai}`).join(' · ')}. Mark each ok / missing / wrong / unknown from the child's words. broken_link = the first link that is missing or wrong (null only if correct).
+
+rubric: s1, s2, s3 = 1 if the child's own words express science step 1, 2, 3 above.
 
 Noor's line ("noor"): Palestinian Arabic, 1–2 short sentences, warm and curious, ending with a question mark.
-- model: show you understood their idea in their words, then ask them to PREDICT what happens in best_experiment (describe it simply).
-- clarify: one simple question. offtopic: bring them back to the glass.
+- model: restate their idea in their words so they feel understood, then invite them to test it in the lab ("شو بتتوقّع يصير لو…").
+- clarify / offtopic: as above.
 - correct: praise one specific thing they said and ask them to teach you.
-- Never say بخار, تكاثف, يتكاثف, or explain the answer, unless the child already used that word. Never tell them they are wrong; the experiment will show it.
+- Never tell them they are wrong. Never explain the science. Never use words that give the answer (${p.answerWords.source}) unless the child used them first.
 
 caption: one short sentence in Palestinian Arabic starting with «هيك إنت شايفها:» restating THEIR idea. Empty for clarify/offtopic.
 evidence: the exact few words from the child your model rests on.
-confidence: 0–1. Below 0.5 prefer "clarify".`;
+confidence: 0–1. If below 0.5, use "clarify".`;
+}
 
 export function diagnoseUser(text: string, ctx: BrainContext): string {
   const prev = ctx.previous.slice(-4).map((p) => `- «${p.text}» → ${p.caption || p.status}`).join('\n') || '- none';
   const exps = ctx.experiments
-    .map((r) => `- ${r.exp}: their idea predicted ${r.predicted}, reality ${r.real}${r.contradicted ? ' (CONTRADICTED)' : ' (matched)'}`)
+    .map((r) => `- ${JSON.stringify(r.cond)}: their idea predicted ${r.predicted}, reality ${r.real}${r.contradicted ? ' (CONTRADICTED)' : ' (matched)'}`)
     .join('\n') || '- none';
   return `Earlier explanations from this child:\n${prev}\nExperiments already run:\n${exps}\n\nCHILD SAID NOW: «${text}»\n\nCall record_diagnosis.`;
 }
 
 const enumOf = (xs: readonly string[]) => ({ type: 'string', enum: [...xs] });
 const bit = { type: 'integer', enum: [0, 1] };
+const rubricSchema = { type: 'object', properties: { s1: bit, s2: bit, s3: bit }, required: ['s1', 's2', 's3'] };
 
-export const DIAGNOSE_TOOL = {
-  name: 'record_diagnosis',
-  description: "Record the model of the child's idea, the chain diagnosis and Noor's next line.",
-  input_schema: {
-    type: 'object' as const,
-    properties: {
-      status: enumOf(['model', 'correct', 'clarify', 'offtopic']),
-      caption: { type: 'string' },
-      sources: { type: 'array', items: enumOf(SOURCE_IDS), maxItems: 2 },
-      path: enumOf(PATH_IDS),
-      needs_cold: { type: 'boolean' },
-      chain: {
-        type: 'object',
-        properties: Object.fromEntries(CHAIN_IDS.map((c) => [c, enumOf(['ok', 'missing', 'wrong', 'unknown'])])),
-        required: [...CHAIN_IDS],
-      },
-      broken_link: { type: ['string', 'null'], enum: [...CHAIN_IDS, null] },
-      predictions: {
-        type: 'object',
-        properties: {
-          E_color: enumOf(['blue', 'clear', 'none']),
-          E_empty: enumOf(['drops', 'none']),
-          E_cover: enumOf(['drops', 'none']),
-          E_warm: enumOf(['drops', 'fewer', 'none']),
-          E_dry: enumOf(['drops', 'fewer', 'none']),
+export function diagnoseTool(p: ConceptPack) {
+  return {
+    name: 'record_diagnosis',
+    description: "Record the model of the child's idea, their causal chain, the chain diagnosis and Noor's next line.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        status: enumOf(['model', 'correct', 'clarify', 'offtopic']),
+        caption: { type: 'string' },
+        sources: { type: 'array', items: enumOf(Object.keys(p.sources)), maxItems: 2 },
+        path: enumOf(Object.keys(p.paths)),
+        requires: { type: 'array', items: enumOf(Object.keys(p.requires)), maxItems: 2 },
+        child_chain: { type: 'array', items: { type: 'string' }, maxItems: 4 },
+        wrong_step: { type: ['integer', 'null'] },
+        chain: {
+          type: 'object',
+          properties: Object.fromEntries(CHAIN_IDS.map((c) => [c, enumOf(['ok', 'missing', 'wrong', 'unknown'])])),
+          required: [...CHAIN_IDS],
         },
-        required: [...EXPERIMENT_IDS],
+        broken_link: { type: ['string', 'null'], enum: [...CHAIN_IDS, null] },
+        noor: { type: 'string' },
+        rubric: rubricSchema,
+        confidence: { type: 'number' },
+        evidence: { type: 'string' },
       },
-      best_experiment: { type: ['string', 'null'], enum: [...EXPERIMENT_IDS, null] },
-      noor: { type: 'string' },
-      rubric: {
-        type: 'object',
-        properties: { vapor_in_air: bit, cooling: bit, turns_to_drops: bit },
-        required: ['vapor_in_air', 'cooling', 'turns_to_drops'],
-      },
-      confidence: { type: 'number' },
-      evidence: { type: 'string' },
+      required: ['status', 'caption', 'sources', 'path', 'requires', 'child_chain', 'wrong_step', 'chain', 'broken_link', 'noor', 'rubric', 'confidence', 'evidence'],
     },
-    required: ['status', 'caption', 'sources', 'path', 'needs_cold', 'chain', 'broken_link', 'predictions', 'best_experiment', 'noor', 'rubric', 'confidence', 'evidence'],
-  },
-};
-
-export const TEACH_SYSTEM = `You are Noor (نور), a small curious robot in the Palestinian science app «سلسلة». The child now understands why droplets form on a cold glass, and is teaching you.
-You deliberately said a WRONG idea: «${NOOR.planted}». The truth: dry air holds less water vapour, so FEWER droplets form.
-Decide whether the child's reply rejects your wrong idea AND gives the reason (dry air has less water / vapour, so fewer or no drops).
-Reply in Palestinian Arabic, 1–2 short sentences:
-- caught: thank them by repeating their reason in your own words, and say you finally understood.
-- not caught: say you are still a bit confused and ask one small hint question about how much water is in dry air. Do not give the answer.`;
-
-export function teachUser(text: string): string {
-  return `CHILD REPLIED: «${text}»\n\nCall record_teaching.`;
+  };
 }
 
-export const TEACH_TOOL = {
-  name: 'record_teaching',
-  description: 'Record whether the child corrected Noor, and Noor\'s reply.',
-  input_schema: {
-    type: 'object' as const,
-    properties: {
-      caught: { type: 'boolean' },
-      noor: { type: 'string' },
-      rubric: {
-        type: 'object',
-        properties: { vapor_in_air: bit, cooling: bit, turns_to_drops: bit },
-        required: ['vapor_in_air', 'cooling', 'turns_to_drops'],
-      },
+export function teachSystem(p: ConceptPack): string {
+  return `You are Noor (نور), a small curious robot in the Palestinian science app «سلسلة». The child now understands «${p.question}» and is teaching you.
+You deliberately said a WRONG idea: «${p.noor.planted}». The truth: ${p.noor.plantedTruth}.
+Decide whether the child's reply rejects your wrong idea AND gives a reason.
+Reply in Palestinian Arabic, 1–2 short sentences:
+- caught: thank them by repeating their reason in your own words, and say you finally understood.
+- not caught: say you are still a bit confused and ask one small hint question. Do not give the answer.
+rubric s1..s3 = 1 if the child's reply expresses: (1) ${p.scienceChain[0]} (2) ${p.scienceChain[1]} (3) ${p.scienceChain[2]}.`;
+}
+
+export function teachTool() {
+  return {
+    name: 'record_teaching',
+    description: "Record whether the child corrected Noor, and Noor's reply.",
+    input_schema: {
+      type: 'object' as const,
+      properties: { caught: { type: 'boolean' }, noor: { type: 'string' }, rubric: rubricSchema },
+      required: ['caught', 'noor', 'rubric'],
     },
-    required: ['caught', 'noor', 'rubric'],
-  },
-};
+  };
+}
+
+/** Noor explains a new phenomenon constrained to ONLY what the child taught her. */
+export function challengeSystem(p: ConceptPack): string {
+  return `You are Noor (نور), a small robot in the app «سلسلة». You know NOTHING about science except what one child taught you (their sentences are below).
+New question for you: «${p.challenge.phenomenon}»
+Answer it in Palestinian Arabic, 1–2 short sentences, using ONLY ideas the child actually taught you. Do not add knowledge they did not give you.
+The full scientific explanation has three steps: (1) ${p.scienceChain[0]} (2) ${p.scienceChain[1]} (3) ${p.scienceChain[2]}.
+missing = the step indexes (0, 1, 2) the child's teaching did NOT give you, so your answer could not use them.
+ask = if something is missing, one short question asking the child to explain that part to you (do not reveal it). Empty if nothing is missing.`;
+}
+
+export function challengeUser(teachings: string[]): string {
+  return `What the child taught you:\n${teachings.map((t) => `- «${t}»`).join('\n')}\n\nCall record_attempt.`;
+}
+
+export function challengeTool() {
+  return {
+    name: 'record_attempt',
+    description: "Record Noor's attempt and which steps were missing from the child's teaching.",
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        answer: { type: 'string' },
+        missing: { type: 'array', items: { type: 'integer', enum: [0, 1, 2] } },
+        ask: { type: 'string' },
+      },
+      required: ['answer', 'missing', 'ask'],
+    },
+  };
+}
+
+/** The child explains a different phenomenon on their own: transfer of understanding. */
+export function transferSystem(p: ConceptPack): string {
+  return `You assess a child's (age 8–11) explanation, in Palestinian Arabic, of a NEW phenomenon: «${p.transfer.question}»
+It is explained by the same science as «${p.question}»: (1) ${p.scienceChain[0]} (2) ${p.scienceChain[1]} (3) ${p.scienceChain[2]}, applied to the new situation.
+rubric s1..s3 = 1 if the child's words express each step for the new situation (everyday words count).
+noor = Noor's warm reply in Palestinian Arabic, 1–2 sentences: if all three, celebrate specifically; otherwise praise what they got and say which part she is still curious about, as a question. Now that the lesson is over, Noor may name the scientific word.`;
+}
+
+export function transferTool() {
+  return {
+    name: 'record_transfer',
+    description: "Record the transfer rubric and Noor's reply.",
+    input_schema: { type: 'object' as const, properties: { rubric: rubricSchema, noor: { type: 'string' } }, required: ['rubric', 'noor'] },
+  };
+}
+
+export function activitySystem(p: ConceptPack): string {
+  return `You are an experienced Palestinian primary science teacher-educator. Design ONE 15-minute classroom activity in Arabic (simple Modern Standard or Palestinian), for grades ${p.grades}, for the question «${p.question}».
+It must target the class's MOST COMMON wrong idea (data below), using predict → observe → explain, with cheap safe materials found in Palestinian schools and homes. No hot water, no glass in freezers, no flames.
+Steps: 3–5 steps whose minutes sum to 15. "check" = one quick question to see if it worked. Do not shame wrong ideas.`;
+}
+
+export function activityTool() {
+  return {
+    name: 'record_activity',
+    description: 'Record the activity plan.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: { type: 'string' },
+        goal: { type: 'string' },
+        materials: { type: 'array', items: { type: 'string' }, maxItems: 8 },
+        steps: {
+          type: 'array', minItems: 2, maxItems: 6,
+          items: { type: 'object', properties: { minutes: { type: 'number' }, title: { type: 'string' }, detail: { type: 'string' } }, required: ['minutes', 'title', 'detail'] },
+        },
+        check: { type: 'string' },
+      },
+      required: ['title', 'goal', 'materials', 'steps', 'check'],
+    },
+  };
+}
