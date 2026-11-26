@@ -57,3 +57,6 @@ npm run eval:models -- --models=google/gemini-3.8-flash,anthropic/claude-haiku-5
 
 - **خلل انصلح:** سيرفر التطوير كان يخرّب ملفات الصوت.
 - الصرف الكلي بعد هالتجارب: حوالي ٠٫٢٥ دولار من ٥.
+
+## صوت نور المختار (26/11)
+الفريق سمع العينات واختار **ElevenLabs `jessica`**. مضبوط على `elevenlabs/eleven-v4-turbo` (الأسرع من نسخ jessica). السعر من قائمة OpenRouter: ٤٠ دولار لكل مليون حرف، يعني تقديرياً حوالي ٠٫١ دولار للجلسة الواحدة (حوالي ٢٢٠٠ حرف). لـVercel حطّوا `TTS_MODEL` و`TTS_VOICE` بنفس القيم.
