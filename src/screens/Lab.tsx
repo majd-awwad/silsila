@@ -46,7 +46,7 @@ export function Lab({ state, dispatch }: { state: State; dispatch: Dispatch<Acti
   const [outcomes, setOutcomes] = useState({ kid: '', real: '' });
   const [cloud, setCloud] = useState({ stt: false, tts: false });
   const browserVoice = useMemo(() => createVoice(), []);
-  const cloudVoice = useMemo(() => createCloudVoice(), []);
+  const cloudVoice = useMemo(() => createCloudVoice(browserVoice), [browserVoice]);
   const browserDictation = useMemo(() => createDictation(), []);
   const cloudDictation = useMemo(() => createCloudDictation(), []);
   // the cloud voice is used only when the server says it is configured; otherwise the browser's own

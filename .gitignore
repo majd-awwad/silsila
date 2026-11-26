@@ -1,4 +1,6 @@
 node_modules
+voice-samples
+voice-in
 dist
 .env
 .env.local

@@ -12,6 +12,7 @@
     "eval": "tsx scripts/run-evals.ts",
     "eval:ai": "tsx scripts/run-evals.ts --ai",
     "eval:models": "tsx scripts/run-evals.ts",
+    "voice:samples": "tsx scripts/voice-samples.ts",
     "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {

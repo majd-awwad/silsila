@@ -5,7 +5,7 @@
  * Provider: any OpenAI-compatible chat endpoint, OpenRouter by default (one key, many models; the model is
  * a config value so we can justify and swap it: see `npm run eval:models`).
  *   OPENROUTER_API_KEY  (or LLM_API_KEY)   secret, server only
- *   LLM_MODEL                              e.g. google/gemini-2.5-flash (OpenRouter slug)
+ *   LLM_MODEL                              e.g. google/gemini-3.8-flash (OpenRouter slug)
  *   LLM_BASE_URL                           default https://openrouter.ai/api/v1
  */
 import type { ActivityPlan, BrainContext, ChallengeResult, Diagnosis, TeachResult, TransferResult } from '../contracts';
@@ -16,7 +16,7 @@ import {
   teachSystem, teachTool, transferSystem, transferTool,
 } from './prompts';
 
-export const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+export const DEFAULT_MODEL = 'google/gemini-3.8-flash';
 
 const env = (k: string) => (typeof process !== 'undefined' ? process.env[k] : undefined);
 export const llmKey = () => env('OPENROUTER_API_KEY') || env('LLM_API_KEY') || '';
@@ -54,20 +54,37 @@ export function parseLooseJson(text: string): Record<string, unknown> | null {
   }
 }
 
+/**
+ * Models differ in what they accept: some reject `temperature`, some require reasoning, some cannot reason with a
+ * forced tool. These optional settings are tried in order; the first that the model accepts is remembered.
+ */
+export const REQUEST_VARIANTS: Record<string, unknown>[] = [
+  { temperature: 0.2, reasoning: { effort: 'low' } },
+  { temperature: 0.2 },
+  { reasoning: { effort: 'low' } },
+  { reasoning: { effort: 'none' } },
+  {},
+];
+const accepted = new Map<string, number>();
+/** HTTP codes that mean "this combination of settings is not supported": worth trying the next one. */
+const UNSUPPORTED = new Set([400, 404, 422]);
+
 async function callTool(system: string, user: string, tool: Tool, timeoutMs = 15_000): Promise<Record<string, unknown>> {
   const apiKey = llmKey();
   if (!apiKey) throw new Error('missing_api_key');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${llmBase()}/chat/completions`, {
+    const model = llmModel();
+    const post = (extra: Record<string, unknown>) => fetch(`${llmBase()}/chat/completions`, {
       method: 'POST',
       signal: ctrl.signal,
       headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}`, 'x-title': 'Silsila' },
       body: JSON.stringify({
-        model: llmModel(),
-        max_tokens: 1000,
-        temperature: 0.2,
+        model,
+        // room for models that think before answering; only used tokens are billed
+        max_tokens: 3000,
+        ...extra,
         messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
         tools: [{ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.input_schema } }],
         tool_choice: { type: 'function', function: { name: tool.name } },
@@ -76,7 +93,11 @@ async function callTool(system: string, user: string, tool: Tool, timeoutMs = 15
         usage: { include: true },
       }),
     });
+    let i = accepted.get(model) ?? 0;
+    let res = await post(REQUEST_VARIANTS[i]);
+    while (UNSUPPORTED.has(res.status) && i < REQUEST_VARIANTS.length - 1) res = await post(REQUEST_VARIANTS[++i]);
     if (!res.ok) throw new Error(`llm_http_${res.status}`);
+    accepted.set(model, i);
     const j = (await res.json()) as ChatResponse;
     usage.calls++;
     usage.promptTokens += j.usage?.prompt_tokens ?? 0;
