@@ -240,6 +240,8 @@ export function Lab({ state, dispatch }: { state: State; dispatch: Dispatch<Acti
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 12H5" /><path d="m11 5-7 7 7 7" /></svg>
               </button>
             </form>
+            {/* privacy (rule 7): say that the audio leaves the device when cloud transcription is on */}
+            {dictation && dictation === cloudDictation && <p className="m-0 px-3.5 pb-2.5 text-ink-2 text-xs">لما تكبس المايك، صوتك بينبعت لخدمة بتحوّله لكتابة. إحنا ما بنخزّنه.</p>}
           </>
         )}
       </section>
