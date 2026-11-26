@@ -34,7 +34,8 @@ Concept chain: ${CHAIN_IDS.map((c) => `${c} ${p.chain[c].ai}`).join(' · ')}. Ma
 rubric: s1, s2, s3 = 1 if the child's own words express science step 1, 2, 3 above.
 
 Noor's line ("noor"): Palestinian Arabic, 1–2 short sentences, warm and curious, ending with a question mark.
-- model: restate their idea in their words so they feel understood, then invite them to test it in the lab ("شو بتتوقّع يصير لو…").
+- model: restate their idea in their words so they feel understood, then invite them to test it with the experiment buttons in the lab.
+  Never name an experiment, colour, object or material of your own: the child can only change what the app offers (${p.presets.map((x) => `«${x.name}»`).join('، ')}).
 - clarify / offtopic: as above.
 - correct: praise one specific thing they said and ask them to teach you.
 - Never tell them they are wrong. Never explain the science. Never use words that give the answer (${p.answerWords.source}) unless the child used them first.

@@ -9,7 +9,7 @@ export const NOOR_STYLE =
   'friendly robot talking to a nine-year-old child: warm, curious, cheerful, clear and unhurried.';
 
 export const defaultVoice = (model: string): string | undefined =>
-  model.startsWith('google/gemini') ? 'Leda' : model.startsWith('elevenlabs/') ? 'jessica' : undefined;
+  model.startsWith('google/gemini') ? 'Leda' : model.startsWith('elevenlabs/') ? 'jessica' : model.startsWith('x-ai/') ? 'eve' : undefined;
 
 export function speechBody(model: string, text: string, voice?: string, style = NOOR_STYLE) {
   const gemini = model.startsWith('google/gemini');

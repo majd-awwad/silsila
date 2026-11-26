@@ -2,6 +2,7 @@
  * Voice bake-off. Needs OPENROUTER_API_KEY in .env.local.
  *   npm run voice:samples
  * 1. Speaks the same Noor lines with several TTS models → voice-samples/index.html (listen and pick by ear).
+ *    Each clip is transcribed back (STT_MODEL) as a rough clarity check. That number does NOT judge the dialect.
  * 2. Transcribes every recording you put in voice-in/ with several STT models. If voice-in/<name>.txt holds the
  *    exact words, it prints the word error rate. Use the team's own voices only: never record real children here.
  */
@@ -24,14 +25,36 @@ const TTS: [string, string][] = [
   ['google/gemini-3.8-flash-lite-tts', 'Leda'],
   ['elevenlabs/eleven-v3', 'jessica'],
   ['elevenlabs/eleven-v4-turbo', 'jessica'],
+  ['elevenlabs/eleven-v4', 'jessica'],
+  ['elevenlabs/eleven-v3', 'lily'],
+  ['x-ai/grok-voice-tts-1.0', 'eve'],
+  ['x-ai/grok-voice-tts-1.0', 'ara'],
+  ['fish-audio/s2.1-pro', ''],
+  ['fish-audio/drama-3', ''],
 ];
-const STT = ['openai/gpt-4o-transcribe', 'openai/gpt-4o-mini-transcribe', 'google/gemini-3.5-transcribe', 'elevenlabs/scribe-v2', 'openai/whisper-large-v3-turbo'];
+const STT = ['openai/gpt-4o-transcribe', 'openai/gpt-4o-mini-transcribe', 'google/gemini-3.5-transcribe', 'elevenlabs/scribe-v2', 'openai/whisper-large-v3-turbo', 'mistralai/voxtral-mini-transcribe'];
 const LINES = [
   'أهلاً! أنا نور. شايف النقط اللي عم تطلع ع الكاسة من برّا؟ احكيلي بكلامك: من وين إجت؟',
   'يعني إذا جبنا كاسة فاضية من الفريزر، شو رح يصير عليها؟ يلا نجرّب ونشوف!',
   'ولا يهمك، إحنا بنتعلّم مع بعض. جرّب كمان مرة، أنا متحمّسة أسمع فكرتك.',
 ];
 const headers = () => ({ 'content-type': 'application/json', authorization: `Bearer ${llmKey()}` });
+
+/** Rough clarity check: can a speech-to-text model recover the words? */
+async function heardBack(audio: Buffer, format: string, line: string): Promise<{ wer: number; said: string } | null> {
+  const model = process.env.STT_MODEL;
+  if (!model) return null;
+  try {
+    const body = transcriptionBody(model, audio.toString('base64'), format);
+    const r = await fetch(`${llmBase()}/audio/transcriptions`, { method: 'POST', headers: headers(), body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
+    if (!r.ok) { console.log(`  STT check failed: HTTP ${r.status} ${(await r.text()).slice(0, 160)}`); return null; }
+    const said = ((await r.json()) as { text?: string }).text ?? '';
+    return { wer: Math.round(wordErrorRate(line, said) * 100), said };
+  } catch (e) {
+    console.log(`  STT check failed: ${(e as Error).message}`);
+    return null;
+  }
+}
 
 async function speak() {
   mkdirSync('voice-samples', { recursive: true });
@@ -45,10 +68,12 @@ async function speak() {
         const r = await fetch(`${llmBase()}/audio/speech`, { method: 'POST', headers: headers(), body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
         if (!r.ok) throw new Error(`HTTP ${r.status} ${(await r.text()).slice(0, 160)}`);
         const file = `${model.replace(/[^a-z0-9.-]+/gi, '_')}-${voice}-${i + 1}.${body.response_format}`;
-        writeFileSync(join('voice-samples', file), Buffer.from(await r.arrayBuffer()));
+        const audio = Buffer.from(await r.arrayBuffer());
+        writeFileSync(join('voice-samples', file), audio);
         const ms = Date.now() - t0;
-        console.log(`TTS ${model} ${voice} line ${i + 1}: ${ms} ms`);
-        cells += `<td><audio controls preload="none" src="${file}"></audio><br><small>${ms} ms</small></td>`;
+        const back = await heardBack(audio, body.response_format, line);
+        console.log(`TTS ${model} ${voice} line ${i + 1}: ${ms} ms${back ? `, heard back (WER ${back.wer}%): ${back.said}` : ''}`);
+        cells += `<td><audio controls preload="none" src="${file}"></audio><br><small>${ms} ms${back ? ` · خطأ الإملاء الآلي ${back.wer}٪` : ''}</small></td>`;
       } catch (e) {
         console.log(`TTS ${model} ${voice} line ${i + 1}: FAILED ${(e as Error).message}`);
         cells += '<td>فشل</td>';

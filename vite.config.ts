@@ -32,7 +32,8 @@ function devApi(): Plugin {
           const response: Response = await mod.POST(request);
           res.statusCode = response.status;
           response.headers.forEach((v, k) => res.setHeader(k, v));
-          res.end(await response.text());
+          // bytes, not text: Noor's voice is binary audio and text decoding corrupts it
+          res.end(Buffer.from(await response.arrayBuffer()));
         } catch (e) {
           server.config.logger.error(String(e));
           res.statusCode = 500;
@@ -44,8 +45,13 @@ function devApi(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  // Make .env.local values (OPENROUTER_API_KEY) visible to the dev API handlers.
-  Object.assign(process.env, loadEnv(mode, process.cwd(), ''));
+  // Make .env.local values (OPENROUTER_API_KEY) visible to the dev API handlers. Vite restarts when .env.local
+  // changes, but loadEnv lets values already in process.env win, so drop the ones we set last time first.
+  for (const key of (process.env.SILSILA_ENV_KEYS ?? '').split(',')) if (key) delete process.env[key];
+  const shell = new Set(Object.keys(process.env));
+  const env = loadEnv(mode, process.cwd(), '');
+  Object.assign(process.env, env);
+  process.env.SILSILA_ENV_KEYS = Object.keys(env).filter((k) => !shell.has(k)).join(',');
   return {
     plugins: [react(), tailwindcss(), devApi()],
     test: { include: ['tests/**/*.test.ts'] },
