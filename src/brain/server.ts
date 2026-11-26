@@ -64,6 +64,8 @@ export const REQUEST_VARIANTS: Record<string, unknown>[] = [
   { reasoning: { effort: 'low' } },
   { reasoning: { effort: 'none' } },
   {},
+  // some providers (Claude Haiku) accept a forced tool but do not advertise it, so strict routing finds nobody
+  { provider: {} },
 ];
 const accepted = new Map<string, number>();
 /** HTTP codes that mean "this combination of settings is not supported": worth trying the next one. */
@@ -84,13 +86,13 @@ async function callTool(system: string, user: string, tool: Tool, timeoutMs = 15
         model,
         // room for models that think before answering; only used tokens are billed
         max_tokens: 3000,
-        ...extra,
         messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
         tools: [{ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.input_schema } }],
         tool_choice: { type: 'function', function: { name: tool.name } },
         // OpenRouter: only route to providers that really support tools; ask for token and cost accounting
         provider: { require_parameters: true },
         usage: { include: true },
+        ...extra,
       }),
     });
     let i = accepted.get(model) ?? 0;

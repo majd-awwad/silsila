@@ -1,0 +1,114 @@
+{
+  "mode": "llm",
+  "model": "anthropic/claude-haiku-5.5",
+  "at": "2026-11-26T18:10:33.684Z",
+  "packs": [
+    {
+      "pack": "condensation",
+      "bySplit": {
+        "dev": {
+          "cases": 40,
+          "status_accuracy": 90,
+          "source_accuracy": 96.8,
+          "source_macro_f1": 96.3,
+          "broken_link_accuracy": 73.1,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": 0,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        },
+        "holdout": {
+          "cases": 40,
+          "status_accuracy": 87.5,
+          "source_accuracy": 96.6,
+          "source_macro_f1": 97.5,
+          "broken_link_accuracy": 81,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": 60,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        }
+      },
+      "latency_ms": {
+        "p50": 2606,
+        "p95": 2998
+      },
+      "contaminated": [
+        "ما بعرف",
+        "في مي بالهوا"
+      ],
+      "misses": [
+        "[dev] source  «الزجاج بيرشح مي» expected inside_water, got glass_itself",
+        "[dev] link    «الكاسة بتعرق زيّنا لما نلعب» expected C2, got C1",
+        "[dev] link    «البرد نفسه بيصير مي» expected C2, got C1",
+        "[dev] link    «لما الكاسة تكون باردة كثير البرد بيطلع منها على شكل مي» expected C2, got C3",
+        "[dev] link    «يمكن حدا رشّ عليها مي» expected C2, got C1",
+        "[dev] link    «أكيد انكبّت مي عليها لما عبّيناها» expected C2, got C1",
+        "[dev] status  «بتطلع لحالها» expected model, got clarify",
+        "[dev] status  «هيك الكاسات بيصير فيها» expected model, got clarify",
+        "[dev] link    «من الهوا» expected C3, got null",
+        "[dev] status  «الكاسة بتبكي» expected model, got clarify",
+        "[dev] status  «لأنه الكاسة باردة» expected model, got clarify",
+        "[dev] link    «بخار من المي اللي جوا بيطلع من فوق وبينزل على الكاسة» expected C2, got C3",
+        "[holdout] link    «التلج لما يدوب بيطلع برا» expected C2, got C4",
+        "[holdout] link    «لما نحط تلج المي بتبرد وبتطلع لبرا» expected C2, got C3",
+        "[holdout] status  «في رطوبة بالجو وبتتجمع على الكاسة لانها باردة» expected correct, got model",
+        "[holdout] status  «اخوي كب مي عليها» expected model, got clarify",
+        "[holdout] source  «الزجاج فيه مسامات صغيره والمي بتطلع منها» expected inside_water, got glass_itself",
+        "[holdout] link    «مممم يمكن من الهوا؟» expected C3, got null",
+        "[holdout] status  «في مي بالهوا» expected model, got clarify",
+        "[holdout] status  «بتصير المي نقط لأن البرد بيجمعها من الهوا» expected correct, got model",
+        "[holdout] link    «بتنزل نقط من المكيّف عليها» expected C2, got C1",
+        "[holdout] status  «لما الهوا يلمس الكاسة الباردة بيبرد والمي اللي فيه بتصير نقط» expected correct, got model"
+      ]
+    },
+    {
+      "pack": "evaporation",
+      "bySplit": {
+        "dev": {
+          "cases": 1,
+          "status_accuracy": 100,
+          "source_accuracy": 100,
+          "source_macro_f1": 100,
+          "broken_link_accuracy": null,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": null,
+          "false_correct_rate": 0,
+          "ambiguous_handled": null,
+          "answer_leaks": 0
+        },
+        "holdout": {
+          "cases": 23,
+          "status_accuracy": 87,
+          "source_accuracy": 100,
+          "source_macro_f1": 100,
+          "broken_link_accuracy": null,
+          "experiment_fits_misconception": 92.3,
+          "false_diagnosis_rate": 66.7,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        }
+      },
+      "latency_ms": {
+        "p50": 2473,
+        "p95": 2699
+      },
+      "contaminated": [],
+      "misses": [
+        "[holdout] status  «لما المي تسخن بتتبخر وبتطير بالهوا» expected correct, got model",
+        "[holdout] status  «تبخرت» expected model, got clarify",
+        "[holdout] status  «الحرارة بتخلي المي تصير غاز وتطلع للجو» expected correct, got model",
+        "[holdout] experiment «المي بتطلع لفوق» V_cold does not break to_vapor"
+      ]
+    }
+  ],
+  "usage": {
+    "calls": 104,
+    "promptTokens": 290684,
+    "completionTokens": 54882,
+    "costUsd": 0.056509399999999994
+  }
+}

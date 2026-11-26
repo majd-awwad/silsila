@@ -57,3 +57,19 @@ describe('models that reject a setting', () => {
     expect(sent.length).toBe(4);
   });
 });
+
+import { normaliseDiagnosis } from '../src/brain/normalise';
+
+describe('the broken link follows from the idea, whatever the model says', () => {
+  const pack = getPack('condensation');
+  const ctx = { pack: pack.id, phase: 'explain' as const, previous: [], experiments: [] };
+  const diag = (sources: string[], broken: string) => normaliseDiagnosis(pack, { status: 'model', sources, broken_link: broken, confidence: 0.9, noor: 'شو رأيك؟' }, 'نص', ctx, 'ai');
+  it('a wrong source breaks at C2', () => {
+    expect(diag(['inside_water'], 'C1').broken_link).toBe('C2');
+    expect(diag(['ice'], 'C4').broken_link).toBe('C2');
+  });
+  it('the right source breaks later in the chain', () => {
+    expect(diag(['air_vapor'], 'C2').broken_link).toBe('C3');
+    expect(diag(['air_vapor'], 'C4').broken_link).toBe('C4');
+  });
+});

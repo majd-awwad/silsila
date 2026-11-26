@@ -82,6 +82,17 @@ export function normaliseDiagnosis(pack: ConceptPack, raw: Raw, childText: strin
   let broken = CHAIN_IDS.includes(raw.broken_link as ChainId) ? (raw.broken_link as ChainId) : null;
   if (status === 'correct') broken = null;
   else if (!broken) broken = CHAIN_IDS.find((c) => chain[c] === 'missing' || chain[c] === 'wrong') ?? null;
+  // Which link is broken follows from the child's idea, so code decides it (models disagreed with each other here):
+  // a wrong source means the chain breaks at C2; with the right source it breaks later, at C3 or after.
+  if (status === 'model' && model) {
+    if (!model.sources.includes(pack.correctModel.sources[0])) {
+      broken = 'C2';
+      if (chain.C2 !== 'wrong') chain.C2 = 'missing';
+    } else {
+      const later = CHAIN_IDS.slice(2);
+      if (!broken || !later.includes(broken)) broken = later.find((c) => chain[c] === 'missing' || chain[c] === 'wrong') ?? 'C3';
+    }
+  }
 
   const diag: Diagnosis = {
     pack: pack.id,

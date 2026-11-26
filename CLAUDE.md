@@ -74,5 +74,5 @@ M1 done: two packs (condensation, evaporation), counterfactual lab, causal chain
 challenge, transfer, Learning DNA, live class with QR, AI activity plans, Lite 2D scene, 104 eval sentences.
 M1.1 (this session): child/judge views, Noor explains after 3 stuck tries (+ teacher flag), OpenRouter provider with
 `eval:models` bake-off, optional cloud STT/TTS endpoints, voice on by default for children, 35 tests.
-Not yet verified: any real model response (no key yet), cloud voice (`/api/stt`, `/api/tts` written from the docs, never
-called), real-GPU look, Arabic speech on the demo laptop, live class on Vercel (needs Upstash; works on one laptop without it).
+Verified 26/11 with a real key: diagnosis (gemini-3.8-flash, bake-off in `docs/MODEL-CHOICE.md`), cloud TTS (ElevenLabs
+jessica) and STT through the app. Not yet verified: a human voice through the mic, real-GPU look, Arabic speech on the demo laptop, live class on Vercel (needs Upstash; works on one laptop without it).

@@ -1,0 +1,94 @@
+{
+  "mode": "llm",
+  "model": "google/gemini-3.8-flash",
+  "at": "2026-11-26T18:23:13.795Z",
+  "packs": [
+    {
+      "pack": "condensation",
+      "bySplit": {
+        "dev": {
+          "cases": 40,
+          "status_accuracy": 92.5,
+          "source_accuracy": 96.9,
+          "source_macro_f1": 97.1,
+          "broken_link_accuracy": 100,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": 0,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        },
+        "holdout": {
+          "cases": 40,
+          "status_accuracy": 100,
+          "source_accuracy": 100,
+          "source_macro_f1": 100,
+          "broken_link_accuracy": 100,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": 0,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        }
+      },
+      "latency_ms": {
+        "p50": 3801,
+        "p95": 5402
+      },
+      "contaminated": [
+        "ما بعرف",
+        "في مي بالهوا"
+      ],
+      "misses": [
+        "[dev] source  «الزجاج بيرشح مي» expected inside_water, got glass_itself",
+        "[dev] status  «بتطلع لحالها» expected model, got clarify",
+        "[dev] status  «هيك الكاسات بيصير فيها» expected model, got clarify",
+        "[dev] status  «لأنه الكاسة باردة» expected model, got clarify"
+      ]
+    },
+    {
+      "pack": "evaporation",
+      "bySplit": {
+        "dev": {
+          "cases": 1,
+          "status_accuracy": 100,
+          "source_accuracy": 100,
+          "source_macro_f1": 100,
+          "broken_link_accuracy": null,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": null,
+          "false_correct_rate": 0,
+          "ambiguous_handled": null,
+          "answer_leaks": 0
+        },
+        "holdout": {
+          "cases": 23,
+          "status_accuracy": 95.7,
+          "source_accuracy": 100,
+          "source_macro_f1": 100,
+          "broken_link_accuracy": null,
+          "experiment_fits_misconception": 92.3,
+          "false_diagnosis_rate": 0,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        }
+      },
+      "latency_ms": {
+        "p50": 3775,
+        "p95": 4607
+      },
+      "contaminated": [],
+      "misses": [
+        "[holdout] status  «تبخرت» expected model, got clarify",
+        "[holdout] experiment «المي بتطلع لفوق» V_cold does not break to_vapor"
+      ]
+    }
+  ],
+  "usage": {
+    "calls": 104,
+    "promptTokens": 182972,
+    "completionTokens": 25323,
+    "costUsd": 0.23219025
+  }
+}
