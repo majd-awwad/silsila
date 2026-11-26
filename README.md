@@ -9,24 +9,29 @@
 ## تشغيل
 ```bash
 npm install
-cp .env.example .env.local     # وحط ANTHROPIC_API_KEY (مفتاح API منفصل، مش اشتراك Claude)
+cp .env.example .env.local     # وحط OPENROUTER_API_KEY (من openrouter.ai/keys)
 npm run dev                    # http://localhost:5173  ·  شاشة المعلّم: /#/teacher
 ```
 بدون مفتاح، التطبيق بيشتغل بالوضع الاحتياطي وبيكتب هيك فوق.
 
+- **وضع الطفل (الافتراضي):** الطفل بيشوف فكرته هو بس. السلسلة العلمية وجدول «الحقيقة» ما بيظهروا قبل ما يصحّح.
+- **وضع الحكّام:** `/?judge=1` بيفتح كل شي (عقل سلسلة كامل). مع `&quick=1` بيتخطّى الاختبارين. `?judge=0` بيرجّعه.
 - **الصف الحي على لابتوب واحد:** `npm run dev -- --host`، وكل الأجهزة على نفس الشبكة بتمسح الـQR من شاشة المعلّم.
-- **وضع الحكّام:** `/?quick=1` بيتخطّى الاختبارين.
 - **الوضع الخفيف:** `/?q=low` أو الزر بالمختبر.
+- **الصوت:** نور بتحكي تلقائياً بوضع الطفل. صوت المتصفح هو الأساس، وصوت سحابي اختياري بـ`STT_MODEL` و`TTS_MODEL`.
 
 ## فحص
 ```bash
-npm run check      # الأنواع + الاختبارات + البناء
-npm run eval       # دقة التشخيص على evals/utterances.json (الوضع الاحتياطي)
-npm run eval:ai    # نفس الإشي مع Claude
+npm run check          # الأنواع + الاختبارات + البناء
+npm run eval           # دقة التشخيص على evals/*.json (الوضع الاحتياطي)
+npm run eval:ai        # نفس الإشي مع الموديل المضبوط بـLLM_MODEL
+npm run eval:models -- --models=google/gemini-2.5-flash,openai/gpt-5-mini
+                       # مقارنة بين موديلات OpenRouter: الدقة، التسريب، الزمن، والتكلفة لكل 1000 تشخيص
 ```
+جدول المقارنة هو جوابنا على سؤال «ليش هالـAPI بالذات؟».
 
 ## نشر على Vercel
-اربطوا المستودع بـVercel (Framework: Vite)، وحطّوا `ANTHROPIC_API_KEY` بـEnvironment Variables. دوال `api/*.ts` بتنشر لحالها.
+اربطوا المستودع بـVercel (Framework: Vite)، وحطّوا `OPENROUTER_API_KEY` و`LLM_MODEL` بـEnvironment Variables. دوال `api/*.ts` بتنشر لحالها.
 للصف الحي على Vercel ضيفوا `UPSTASH_REDIS_REST_URL` و`UPSTASH_REDIS_REST_TOKEN` (حساب Upstash مجاني).
 
-قوانين المشروع وتوزيع الشغل: `CLAUDE.md`.
+قوانين المشروع وتوزيع الشغل: `CLAUDE.md`. يوم الهاكاثون ومعايير التحكيم والقرارات: `docs/COMPETITION.md`.

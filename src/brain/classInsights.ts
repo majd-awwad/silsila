@@ -17,6 +17,7 @@ export function entryFromSession(s: Session): ClassEntry {
     understood,
     taught: !!s.teach?.caught,
     transferScore: s.transfer ? s.transfer.score : null,
+    needsHelp: s.scaffolded,
   };
 }
 
@@ -24,6 +25,8 @@ export interface ClassSummary {
   total: number;
   understood: number;
   needFollowUp: number;
+  /** children Noor had to help after they were stuck (STUCK_AFTER tries) */
+  helped: number;
   ideas: { source: string; label: string; count: number; correct: boolean }[];
   topWrong: string | null;
   topLink: { link: ChainId; count: number } | null;
@@ -50,10 +53,73 @@ export function summarise(pack: ConceptPack, entries: ClassEntry[]): ClassSummar
   const exp = [...exps.entries()].sort((a, b) => b[1] - a[1])[0];
   const understood = mine.filter((e) => e.understood).length;
   return {
-    total: mine.length, understood, needFollowUp: mine.length - understood, ideas: ideaList, topWrong,
+    total: mine.length, understood, needFollowUp: mine.length - understood, helped: mine.filter((e) => e.needsHelp).length, ideas: ideaList, topWrong,
     topLink: link ? { link: link[0], count: link[1] } : null,
     topExperiment: exp ? { id: exp[0], count: exp[1] } : null,
   };
+}
+
+export interface InterventionGroup {
+  kind: 'idea' | 'help';
+  /** the wrong idea (source id) this group shares; null for the "needs Noor's help" group */
+  source: string | null;
+  label: string;
+  members: string[];
+  brokenLink: ChainId | null;
+  /** the experiment that breaks this group's idea, as the pack names it */
+  experiment: { id: string; name: string } | null;
+  /** children who already explain it correctly and can pair with this group */
+  helpers: string[];
+  move: string;
+}
+
+/**
+ * Small groups a teacher can pull aside right now: children who share the same wrong idea go to the same
+ * experiment (the one that breaks it); children Noor had to help get a retell-it-to-a-friend pairing.
+ * Deterministic: same entries in, same groups out. Names are pseudonyms.
+ */
+export function interventionGroups(pack: ConceptPack, entries: ClassEntry[]): InterventionGroup[] {
+  const mine = entries.filter((e) => e.pack === pack.id);
+  const correct = pack.correctModel.sources[0];
+  const helpers = mine.filter((e) => e.understood && !e.needsHelp).map((e) => e.pseudonym);
+  const bySource = new Map<string, ClassEntry[]>();
+  for (const e of mine) {
+    if (e.understood) continue;
+    const src = e.firstSources[0];
+    if (!src || src === correct) continue;
+    bySource.set(src, [...(bySource.get(src) ?? []), e]);
+  }
+  const groups: InterventionGroup[] = [...bySource.entries()]
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([src, list]) => {
+      const exps = new Map<string, number>();
+      const links = new Map<ChainId, number>();
+      for (const e of list) {
+        if (e.bestExperiment) exps.set(e.bestExperiment, (exps.get(e.bestExperiment) ?? 0) + 1);
+        if (e.brokenLink) links.set(e.brokenLink, (links.get(e.brokenLink) ?? 0) + 1);
+      }
+      const expId = [...exps.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      const preset = expId ? pack.presets.find((p) => p.id === expId) : null;
+      const link = [...links.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      const label = pack.sources[src]?.label ?? src;
+      return {
+        kind: 'idea' as const, source: src, label, members: list.map((e) => e.pseudonym), brokenLink: link,
+        experiment: preset ? { id: preset.id, name: preset.name } : null,
+        helpers: helpers.slice(0, 2),
+        move: preset
+          ? `خلّيهم يتوقّعوا ويجرّبوا «${preset.name}» وبعدين يحكوا شو تغيّر عن فكرتهم.`
+          : 'خلّيهم يغيّروا متغيّر واحد بالمرّة ويقارنوا فكرتهم بالنتيجة.',
+      };
+    });
+  const needHelp = mine.filter((e) => e.needsHelp);
+  if (needHelp.length) {
+    groups.push({
+      kind: 'help', source: null, label: 'احتاجوا مساعدة نور', members: needHelp.map((e) => e.pseudonym), brokenLink: null,
+      experiment: null, helpers: helpers.slice(0, 2),
+      move: 'اجلس معهم دقيقتين: كل واحد يعيد شرح نور بكلامه لصاحبه، وبعدين يجرّبوا كاسة حقيقية.',
+    });
+  }
+  return groups;
 }
 
 export function fallbackActivity(pack: ConceptPack, topWrong: string | null): Omit<ActivityPlan, 'source'> {

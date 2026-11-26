@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { ClassEntry } from '../src/contracts';
 import { fallbackActivity, summarise, summaryForAI } from '../src/brain/classInsights';
-import { activityWithClaude } from '../src/brain/server';
+import { activityWithLLM } from '../src/brain/server';
 import { bad, logFallback, packFrom, readJson } from './_util';
 
 export async function POST(request: Request): Promise<Response> {
@@ -12,6 +12,6 @@ export async function POST(request: Request): Promise<Response> {
   if (!pack || !entries.success) return bad();
   const s = summarise(pack, entries.data);
   const fb = fallbackActivity(pack, s.topWrong);
-  try { return Response.json(await activityWithClaude(pack, summaryForAI(pack, s), fb)); }
+  try { return Response.json(await activityWithLLM(pack, summaryForAI(pack, s), fb)); }
   catch (e) { logFallback('activity', e); return Response.json({ ...fb, source: 'fallback' }); }
 }

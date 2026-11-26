@@ -56,6 +56,8 @@ export interface ConceptPack {
   title: string;
   subject: string;
   grades: string;
+  /** where this lesson comes from in the Palestinian curriculum (checked against the printed book) */
+  curriculum: { book: string; unit: string; lesson: string; pages: string; note?: string };
   question: string;
   /** scene behaviour id in src/scene/behaviours */
   scene: 'condensation' | 'evaporation';
@@ -94,6 +96,8 @@ export interface ConceptPack {
     stillConfused: string;
     challengeIntro: string;
     transferIntro: string;
+    /** Noor's gentle explanation when the child is stuck after STUCK_AFTER tries (pack content, never model-written) */
+    reveal: string;
   };
   /** words that give the answer away; Noor must not say them before the child does */
   answerWords: RegExp;

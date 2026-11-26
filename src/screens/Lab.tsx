@@ -7,13 +7,15 @@ import { compare, conditionsFor, presetFor, sameConditions } from '../brain/worl
 import { BrandMark, NoorAvatar } from '../components/NoorAvatar';
 import { LabControls } from '../components/LabControls';
 import type { Action, State } from '../flow/machine';
-import { brainContext } from '../flow/machine';
+import { brainContext, contradictedCount, teachStuck } from '../flow/machine';
+import { isJudgeMode, reveals } from '../mode';
 import { getPack } from '../packs';
 import { LiteScene } from '../scene/LiteScene';
 import type { MirrorHandle } from '../scene/MirrorCanvas';
 import { MirrorCanvas } from '../scene/MirrorCanvas';
 import type { NoorState } from '../scene/MirrorEngine';
 import { createDictation } from '../voice/stt';
+import { createCloudDictation, createCloudVoice } from '../voice/cloud';
 import { createVoice } from '../voice/tts';
 import { BrainPanel } from './BrainPanel';
 
@@ -33,21 +35,30 @@ export function Lab({ state, dispatch }: { state: State; dispatch: Dispatch<Acti
   const [input, setInput] = useState('');
   const [brainOpen, setBrainOpen] = useState(false);
   const [ai, setAi] = useState<boolean | null>(null);
-  const [speakOn, setSpeakOn] = useState(false);
+  const [aiModel, setAiModel] = useState<string | null>(null);
+  const judge = useMemo(isJudgeMode, []);
+  // voice first for children: Noor talks by default (the child's click on Start counts as the user gesture)
+  const [speakOn, setSpeakOn] = useState(!judge);
   const [talking, setTalking] = useState(false);
   const [listening, setListening] = useState(false);
   const [lite, setLite] = useState(initialLite);
   const [split, setSplit] = useState(false);
   const [outcomes, setOutcomes] = useState({ kid: '', real: '' });
-  const voice = useMemo(() => createVoice(), []);
-  const dictation = useMemo(() => createDictation(), []);
+  const [cloud, setCloud] = useState({ stt: false, tts: false });
+  const browserVoice = useMemo(() => createVoice(), []);
+  const cloudVoice = useMemo(() => createCloudVoice(), []);
+  const browserDictation = useMemo(() => createDictation(), []);
+  const cloudDictation = useMemo(() => createCloudDictation(), []);
+  // the cloud voice is used only when the server says it is configured; otherwise the browser's own
+  const voice = cloud.tts ? cloudVoice : browserVoice;
+  const dictation = (cloud.stt && cloudDictation) || browserDictation;
   const expTimer = useRef<number>(0);
   const spoken = useRef(0);
   const stateRef = useRef(state);
   stateRef.current = state;
 
   useEffect(() => {
-    health().then((h) => setAi(h.ai));
+    health().then((h) => { setAi(h.ai); setAiModel(h.model); setCloud({ stt: h.stt, tts: h.tts }); });
     return () => { clearTimeout(expTimer.current); voice.stop(); };
   }, [voice]);
 
@@ -83,11 +94,13 @@ export function Lab({ state, dispatch }: { state: State; dispatch: Dispatch<Acti
     dispatch({ type: 'CHILD_SAID', text: t });
     dispatch({ type: 'BUSY', busy: true });
     if (phase === 'teach') {
+      const turnsBefore = stateRef.current.session?.teach?.turns ?? 0;
       const r = await teach(pack, t);
       dispatch({ type: 'TAUGHT', text: t, result: r });
-      if (r.caught) {
+      const stuck = teachStuck(turnsBefore, r.caught);
+      if (r.caught || stuck) {
         dispatch({ type: 'BUSY', busy: true });
-        const c = await challenge(pack, teachings);
+        const c = await challenge(pack, stuck ? [...teachings, pack.scienceChain.join('، ')] : teachings);
         dispatch({ type: 'CHALLENGED', result: c });
       }
       return;
@@ -130,11 +143,9 @@ export function Lab({ state, dispatch }: { state: State; dispatch: Dispatch<Acti
       if (!cmp || !m || stateRef.current.lab !== 'explain') return;
       const run: ExperimentRun = { preset: preset?.id ?? null, cond: c, predicted: cmp.kid, real: cmp.real, contradicted: cmp.contradicted, at: Date.now() };
       if (cmp.contradicted) {
-        dispatch({ type: 'EXPERIMENT_RESULT', run, verdict: `الحلقة انكسرت! فكرتك توقّعت «${pack.outcomes[cmp.kid]}»، والحقيقة «${pack.outcomes[cmp.real]}».` });
-        dispatch({ type: 'NOOR', text: pack.noor.afterContradiction });
+        dispatch({ type: 'EXPERIMENT_RESULT', run, verdict: `الحلقة انكسرت! فكرتك توقّعت «${pack.outcomes[cmp.kid]}»، والحقيقة «${pack.outcomes[cmp.real]}».`, noor: pack.noor.afterContradiction });
       } else {
-        dispatch({ type: 'EXPERIMENT_RESULT', run, verdict: `العالمين عملوا نفس الإشي: «${pack.outcomes[cmp.real]}».` });
-        dispatch({ type: 'NOOR', text: s.diag?.status === 'model' ? pack.noor.sameResult : pack.noor.afterMatch });
+        dispatch({ type: 'EXPERIMENT_RESULT', run, verdict: `العالمين عملوا نفس الإشي: «${pack.outcomes[cmp.real]}».`, noor: s.diag?.status === 'model' ? pack.noor.sameResult : pack.noor.afterMatch });
       }
     }, EXPERIMENT_MS);
   }
@@ -155,9 +166,13 @@ export function Lab({ state, dispatch }: { state: State; dispatch: Dispatch<Acti
   };
   const onFail = useCallback(() => setLite(true), []);
 
-  const aiLabel = ai === null ? 'عم يفحص الاتصال…' : ai ? 'Claude متصل' : 'وضع احتياطي بدون ذكاء اصطناعي';
+  const aiLabel = ai === null ? 'عم يفحص الاتصال…' : ai ? `ذكاء اصطناعي متصل${judge && aiModel ? ` · ${aiModel}` : ''}` : 'وضع احتياطي بدون ذكاء اصطناعي';
+  const runs = session?.experiments ?? [];
+  const rev = reveals({ judge, lab, contradicted: contradictedCount(runs) > 0 });
+  // the experiment that breaks the idea is shown only to judges, or as a hint once two tries changed nothing
+  const hintBest = judge || (runs.length >= 2 && contradictedCount(runs) === 0);
   const placeholder = { explain: 'احكي لنور فكرتك…', teach: 'صحّح لنور…', challenge: 'اشرح لنور الجزء الناقص…', transfer: 'فسّر بكلامك…', done: '' }[lab];
-  const samples = lab === 'explain' ? pack.samplePhrases : [];
+  const samples = lab === 'explain' && judge ? pack.samplePhrases : [];
 
   return (
     <div className="lab stage-bg">
@@ -175,7 +190,7 @@ export function Lab({ state, dispatch }: { state: State; dispatch: Dispatch<Acti
             {speakOn ? 'صوت نور: شغّال' : 'صوت نور'}
           </button>
         )}
-        <button type="button" className="btn-ghost brain-toggle" aria-expanded={brainOpen} aria-controls="brain" onClick={() => setBrainOpen(!brainOpen)}>عقل سلسلة</button>
+        <button type="button" className="btn-ghost brain-toggle" aria-expanded={brainOpen} aria-controls="brain" onClick={() => setBrainOpen(!brainOpen)}>{judge ? 'عقل سلسلة' : 'فكرتي'}</button>
       </header>
 
       <section className="lab-chat glass" aria-label="حوار مع نور">
@@ -229,9 +244,9 @@ export function Lab({ state, dispatch }: { state: State; dispatch: Dispatch<Acti
         )}
       </section>
 
-      <BrainPanel pack={pack} diag={diag} open={brainOpen} busy={busy} onRun={(id) => test(conditionsFor(pack, pack.presets.find((p) => p.id === id)?.change))} />
+      <BrainPanel pack={pack} diag={diag} open={brainOpen} busy={busy} rev={rev} judge={judge} onRun={(id) => test(conditionsFor(pack, pack.presets.find((p) => p.id === id)?.change))} />
 
-      <LabControls pack={pack} cond={cond} best={diag?.best_experiment ?? null} busy={busy}
+      <LabControls pack={pack} cond={cond} best={hintBest ? diag?.best_experiment ?? null : null} busy={busy}
         onChange={(c) => dispatch({ type: 'SET_COND', cond: c })} onTest={test} />
     </div>
   );

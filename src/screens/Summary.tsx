@@ -1,6 +1,7 @@
 import type { Session } from '../contracts';
 import { LearningDNA } from '../components/LearningDNA';
 import { NoorAvatar } from '../components/NoorAvatar';
+import { ThinkingReplay } from '../components/ThinkingReplay';
 import { getPack } from '../packs';
 
 const fmt = (n: number) => n.toLocaleString('ar-EG');
@@ -37,6 +38,7 @@ export function Summary({ session, onRestart }: { session: Session; onRestart: (
             <LearningDNA pack={pack} session={session} />
           </section>
         </div>
+        <ThinkingReplay pack={pack} session={session} />
         {session.pre && session.post && (
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-[var(--line)] p-4 text-center">

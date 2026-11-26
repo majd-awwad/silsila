@@ -54,7 +54,7 @@ export function demoClass(packId: string): Session[] {
       teach: { turns: caught ? 1 : 2, caught, quote: caught ? 'لأ، رح يصير أقل' : '' },
       challenge: caught ? { answer: pack.challenge.correctAnswer, missing: [], resolved: true } : null,
       transfer: { text: '', rubric: { s1: tr > 0 ? 1 : 0, s2: tr > 1 ? 1 : 0, s3: tr > 2 ? 1 : 0 }, score: tr },
-      classCode: null, quick: false, demo: true,
+      classCode: null, quick: false, scaffolded: false, demo: true,
     };
   });
 }

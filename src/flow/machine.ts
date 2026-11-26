@@ -37,13 +37,30 @@ export type Action =
   | { type: 'BUSY'; busy: boolean }
   | { type: 'DIAGNOSED'; text: string; diag: Diagnosis }
   | { type: 'SET_COND'; cond: Conditions }
-  | { type: 'EXPERIMENT_RESULT'; run: ExperimentRun; verdict: string }
+  | { type: 'EXPERIMENT_RESULT'; run: ExperimentRun; verdict: string; noor?: string }
   | { type: 'TAUGHT'; text: string; result: TeachResult }
   | { type: 'CHALLENGED'; result: ChallengeResult; childText?: string }
   | { type: 'TRANSFERRED'; text: string; result: TransferResult }
   | { type: 'TO_POST' }
   | { type: 'POST_DONE'; result: QuizResult }
   | { type: 'RESTART' };
+
+/**
+ * A child who is still stuck after this many tries is not left to struggle: Noor explains it gently,
+ * the child retells it in their own words, and the teacher sees "needs follow-up" (decision of 25/11:
+ * we never want the child to give up on the lesson).
+ */
+export const STUCK_AFTER = 3;
+
+/** How many different experiments have already contradicted the child's idea. */
+export function contradictedCount(runs: ExperimentRun[]): number {
+  return new Set(runs.filter((r) => r.contradicted).map((r) => JSON.stringify(Object.entries(r.cond).sort()))).size;
+}
+
+/** Teaching Noor failed STUCK_AFTER times in a row (this turn included)? */
+export function teachStuck(turnsBefore: number, caught: boolean): boolean {
+  return !caught && turnsBefore + 1 >= STUCK_AFTER;
+}
 
 export const initialState: State = {
   phase: 'welcome', lab: 'explain', session: null, messages: [], diag: null, model: null, cond: {}, busy: false, msgSeq: 0,
@@ -97,14 +114,25 @@ export function reducer(s: State, a: Action): State {
     }
     case 'SET_COND':
       return { ...s, cond: a.cond };
-    case 'EXPERIMENT_RESULT':
-      return push(withSession(s, (x) => ({ ...x, experiments: [...x.experiments, a.run] })), 'verdict', a.verdict, !a.run.contradicted);
+    case 'EXPERIMENT_RESULT': {
+      let next = push(withSession(s, (x) => ({ ...x, experiments: [...x.experiments, a.run] })), 'verdict', a.verdict, !a.run.contradicted);
+      const stuck = s.lab === 'explain' && !s.session?.scaffolded && s.diag?.status !== 'correct'
+        && contradictedCount(next.session?.experiments ?? []) >= STUCK_AFTER;
+      if (stuck) return push(withSession(next, (x) => ({ ...x, scaffolded: true })), 'noor', packOf(s).noor.reveal);
+      if (a.noor) next = push(next, 'noor', a.noor);
+      return next;
+    }
     case 'TAUGHT': {
+      const stuck = teachStuck(s.session?.teach?.turns ?? 0, a.result.caught);
       let next = withSession({ ...s, busy: false }, (x) => ({
         ...x, teach: { turns: (x.teach?.turns ?? 0) + 1, caught: a.result.caught, quote: a.result.caught ? a.text : x.teach?.quote ?? '' },
+        scaffolded: x.scaffolded || stuck,
       }));
-      next = push(next, 'noor', a.result.noor);
-      if (a.result.caught) next = push({ ...next, lab: 'challenge' }, 'noor', `${packOf(s).noor.challengeIntro} ${packOf(s).challenge.phenomenon}`);
+      if (stuck) {
+        // Noor explains the correction herself; her challenge then rests on what she was just told
+        next = push({ ...next, teachings: [...s.teachings, packOf(s).scienceChain.join('، ')] }, 'noor', packOf(s).noor.reveal);
+      } else next = push(next, 'noor', a.result.noor);
+      if (a.result.caught || stuck) next = push({ ...next, lab: 'challenge' }, 'noor', `${packOf(s).noor.challengeIntro} ${packOf(s).challenge.phenomenon}`);
       return next;
     }
     case 'CHALLENGED': {

@@ -128,6 +128,8 @@ export const Session = z.object({
   transfer: z.object({ text: z.string(), rubric: Rubric, score: z.number() }).nullable().default(null),
   classCode: z.string().nullable().default(null),
   quick: z.boolean().default(false),
+  /** Noor had to explain it after the child was stuck (teacher: needs follow-up) */
+  scaffolded: z.boolean().default(false),
   demo: z.boolean().default(false),
 });
 export type Session = z.infer<typeof Session>;
@@ -157,6 +159,7 @@ export const ClassEntry = z.object({
   understood: z.boolean(),
   taught: z.boolean(),
   transferScore: z.number().nullable(),
+  needsHelp: z.boolean().default(false),
 });
 export type ClassEntry = z.infer<typeof ClassEntry>;
 

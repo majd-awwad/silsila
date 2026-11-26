@@ -1,5 +1,5 @@
 /**
- * The words that make Claude the brain of سلسلة. Built from the ConceptPack, so a new pack needs no prompt code.
+ * The words that make the language model the brain of سلسلة. Built from the ConceptPack, so a new pack needs no prompt code.
  * The AI interprets language only. Experiment results come from src/brain/world.ts, never from the model.
  * Every call is stateless; output is forced through a tool so it always comes back as JSON.
  */
@@ -155,7 +155,7 @@ export function transferTool() {
 }
 
 export function activitySystem(p: ConceptPack): string {
-  return `You are an experienced Palestinian primary science teacher-educator. Design ONE 15-minute classroom activity in Arabic (simple Modern Standard or Palestinian), for grades ${p.grades}, for the question «${p.question}».
+  return `You are an experienced Palestinian primary science teacher-educator. Design ONE 15-minute classroom activity in Arabic (simple Modern Standard or Palestinian), for grades ${p.grades}, for the question «${p.question}». It belongs to the Palestinian curriculum lesson: ${p.curriculum.book} — ${p.curriculum.lesson}; stay consistent with that lesson.
 It must target the class's MOST COMMON wrong idea (data below), using predict → observe → explain, with cheap safe materials found in Palestinian schools and homes. No hot water, no glass in freezers, no flames.
 Steps: 3–5 steps whose minutes sum to 15. "check" = one quick question to see if it worked. Do not shame wrong ideas.`;
 }

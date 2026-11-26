@@ -1,6 +1,9 @@
 /**
  * npm run eval      → scores the offline fallback on evals/<pack>.json (no key needed)
- * npm run eval:ai   → scores Claude (needs ANTHROPIC_API_KEY in the environment or .env.local)
+ * npm run eval:ai   → scores the configured language model (needs OPENROUTER_API_KEY in the environment or .env.local)
+ * npm run eval:models -- --models=google/gemini-2.5-flash,openai/gpt-5-mini
+ *                     → same eval for each model + a comparison table (accuracy, leaks, latency, cost per 1000 diagnoses)
+ *                       This table is our "why this API" justification for the judges.
  *
  * Splits: "dev" sentences were used while writing the fallback's keyword rules; "holdout" sentences were
  * written afterwards and never used to tune anything. Report holdout numbers to the judges.
@@ -22,15 +25,17 @@ if (existsSync('.env.local')) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
   }
 }
-const useAI = process.argv.includes('--ai');
+const modelsArg = process.argv.find((a) => a.startsWith('--models='))?.slice(9).split(',').map((m) => m.trim()).filter(Boolean) ?? [];
+const oneModel = process.argv.find((a) => a.startsWith('--model='))?.slice(8);
+const useAI = process.argv.includes('--ai') || modelsArg.length > 0 || !!oneModel;
 const pct = (a: number, b: number) => (b ? Math.round((1000 * a) / b) / 10 : null);
 
 async function run(pack: ConceptPack, text: string): Promise<{ d: Diagnosis; ms: number }> {
   const ctx: BrainContext = { pack: pack.id, phase: 'explain', previous: [], experiments: [] };
   const t0 = performance.now();
   if (!useAI) return { d: heuristicDiagnose(pack, text, ctx), ms: performance.now() - t0 };
-  const { diagnoseWithClaude } = await import('../src/brain/server');
-  const d = await diagnoseWithClaude(pack, text, ctx);
+  const { diagnoseWithLLM } = await import('../src/brain/server');
+  const d = await diagnoseWithLLM(pack, text, ctx);
   return { d, ms: performance.now() - t0 };
 }
 
@@ -104,19 +109,64 @@ async function evalPack(pack: ConceptPack) {
   return { pack: pack.id, bySplit, latency_ms: { p50: q(0.5), p95: q(0.95) }, contaminated, misses };
 }
 
-async function main() {
-  const report = { mode: useAI ? 'claude' : 'offline-fallback', model: useAI ? process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5' : null, at: new Date().toISOString(), packs: [] as unknown[] };
+async function runAll(label: string) {
+  const report = { mode: useAI ? 'llm' : 'offline-fallback', model: label, at: new Date().toISOString(), packs: [] as unknown[], usage: null as unknown };
+  const server = useAI ? await import('../src/brain/server') : null;
+  server?.resetUsage();
   for (const pack of PACK_LIST) {
     const r = await evalPack(pack);
     if (!r) continue;
     report.packs.push(r);
-    console.log(`\nسلسلة evals · ${pack.id} · ${report.mode}`);
+    console.log(`\nسلسلة evals · ${pack.id} · ${report.mode} · ${label}`);
     console.table(r.bySplit);
     console.log(`latency p50 ${r.latency_ms.p50} ms · p95 ${r.latency_ms.p95} ms · prompt contamination: ${r.contaminated.length ? r.contaminated.join(' | ') : 'none'}`);
     if (r.misses.length) console.log('Misses:\n' + r.misses.join('\n'));
   }
+  report.usage = server?.getUsage() ?? null;
+  return report;
+}
+
+/** One comparison row per model, over every case of every pack. */
+function summarise(report: Awaited<ReturnType<typeof runAll>>) {
+  let n = 0, ok = 0, leaks = 0, falseCorrect = 0, p50 = 0, p95 = 0;
+  for (const p of report.packs as { bySplit: Record<string, Record<string, number | null>>; latency_ms: { p50: number | null; p95: number | null } }[]) {
+    for (const s of Object.values(p.bySplit)) {
+      const cases = s.cases ?? 0;
+      n += cases; ok += Math.round(((s.status_accuracy ?? 0) * cases) / 100); leaks += s.answer_leaks ?? 0;
+      falseCorrect = Math.max(falseCorrect, s.false_correct_rate ?? 0);
+    }
+    p50 = Math.max(p50, p.latency_ms.p50 ?? 0); p95 = Math.max(p95, p.latency_ms.p95 ?? 0);
+  }
+  const u = report.usage as { calls: number; promptTokens: number; completionTokens: number; costUsd: number } | null;
+  return {
+    model: report.model, cases: n, status_accuracy_pct: pct(ok, n), worst_false_correct_pct: falseCorrect, answer_leaks: leaks,
+    p50_ms: p50, p95_ms: p95,
+    avg_tokens_in: u && u.calls ? Math.round(u.promptTokens / u.calls) : null,
+    avg_tokens_out: u && u.calls ? Math.round(u.completionTokens / u.calls) : null,
+    cost_per_1000_diagnoses_usd: u && u.calls ? Math.round((u.costUsd / u.calls) * 1000 * 100) / 100 : null,
+  };
+}
+
+async function main() {
   mkdirSync('evals/reports', { recursive: true });
-  const out = `evals/reports/${report.mode}-${report.at.slice(0, 10)}.json`;
+  const day = new Date().toISOString().slice(0, 10);
+  if (modelsArg.length) {
+    const rows: unknown[] = [];
+    for (const m of modelsArg) {
+      process.env.LLM_MODEL = m;
+      try { rows.push(summarise(await runAll(m))); } catch (e) { rows.push({ model: m, error: (e as Error).message }); }
+    }
+    console.log('\nمقارنة الموديلات / model bake-off');
+    console.table(rows);
+    const out = `evals/reports/bakeoff-${day}.json`;
+    writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), rows }, null, 2));
+    console.log(`\nreport → ${out}`);
+    return;
+  }
+  if (oneModel) process.env.LLM_MODEL = oneModel;
+  const label = useAI ? (await import('../src/brain/server')).llmModel() : 'offline-fallback';
+  const report = await runAll(label);
+  const out = `evals/reports/${useAI ? 'llm-' + label.replace(/[^\w.-]+/g, '_') : 'offline-fallback'}-${day}.json`;
   writeFileSync(out, JSON.stringify(report, null, 2));
   console.log(`\nreport → ${out}`);
 }

@@ -47,15 +47,15 @@ export async function activity(pack: ConceptPack, entries: ClassEntry[]): Promis
   catch { return { ...fallbackActivity(pack, summarise(pack, entries).topWrong), source: 'fallback' }; }
 }
 
-export interface Health { ai: boolean; liveStore: 'redis' | 'memory' | null }
+export interface Health { ai: boolean; model: string | null; stt: boolean; tts: boolean; liveStore: 'redis' | 'memory' | null }
 export async function health(): Promise<Health> {
   try {
     const r = await fetch('/api/health', { method: 'POST' });
-    if (!r.ok) return { ai: false, liveStore: null };
+    if (!r.ok) return { ai: false, model: null, stt: false, tts: false, liveStore: null };
     const j = (await r.json()) as Partial<Health>;
-    return { ai: !!j.ai, liveStore: j.liveStore ?? null };
+    return { ai: !!j.ai, model: j.model ?? null, stt: !!j.stt, tts: !!j.tts, liveStore: j.liveStore ?? null };
   } catch {
-    return { ai: false, liveStore: null };
+    return { ai: false, model: null, stt: false, tts: false, liveStore: null };
   }
 }
 

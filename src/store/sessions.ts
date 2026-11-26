@@ -30,6 +30,6 @@ export function newSession(pack: string, pseudonym: string, grade: number): Sess
     id: (crypto.randomUUID?.() ?? String(Date.now())) as string,
     pack, pseudonym, grade, startedAt: Date.now(), finishedAt: null,
     pre: null, post: null, explanations: [], experiments: [], teach: null,
-    challenge: null, transfer: null, classCode: null, quick: false, demo: false,
+    challenge: null, transfer: null, classCode: null, quick: false, scaffolded: false, demo: false,
   };
 }

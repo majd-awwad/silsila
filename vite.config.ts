@@ -44,7 +44,7 @@ function devApi(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  // Make .env.local values (ANTHROPIC_API_KEY) visible to the dev API handlers.
+  // Make .env.local values (OPENROUTER_API_KEY) visible to the dev API handlers.
   Object.assign(process.env, loadEnv(mode, process.cwd(), ''));
   return {
     plugins: [react(), tailwindcss(), devApi()],

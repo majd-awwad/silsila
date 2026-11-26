@@ -1,7 +1,7 @@
 {
   "mode": "offline-fallback",
-  "model": null,
-  "at": "2026-11-25T20:01:47.641Z",
+  "model": "offline-fallback",
+  "at": "2026-11-25T20:51:04.291Z",
   "packs": [
     {
       "pack": "condensation",
@@ -92,5 +92,6 @@
         "[holdout] status  «المي بتطلع لفوق» expected model, got clarify"
       ]
     }
-  ]
+  ],
+  "usage": null
 }
