@@ -27,6 +27,7 @@ import { LearnersTab } from './room/LearnersTab';
 import { MapTab } from './room/MapTab';
 import { PlanTab } from './room/PlanTab';
 import { QuickDecision } from './room/QuickDecision';
+import { ReportPlan } from './room/ReportPlan';
 import { NextAction, Stepper } from './room/Stepper';
 import { TestTab } from './room/TestTab';
 
@@ -108,6 +109,7 @@ function ControlRoom({ code, report }: { code: string; report: boolean }) {
         <section className="card stack"><h2 className="subtitle">{t({ ar: 'خطة التدخّل', en: 'Intervention plan' })}</h2>
           {data.groups.map((group, i) => <div key={i}><h3 className="font-bold">{group.title}</h3><p>{group.members.join(' · ')}</p><p>{group.move}</p><p>{group.experiment}</p></div>)}
         </section>
+        <ReportPlan pack={pack} view={view} records={records} />
         <section className="card stack"><h2 className="subtitle">{t({ ar: 'حدود الأدلة', en: 'Limits of the evidence' })}</h2>
           <ul>{data.limitations.map((line) => <li key={line}>{line}</li>)}</ul>
         </section>
