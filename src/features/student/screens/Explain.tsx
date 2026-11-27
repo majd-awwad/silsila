@@ -11,6 +11,7 @@ import { ExperimentStage } from '../../../ui/ExperimentStage';
 import { Icon } from '../../../ui/icons';
 import type { LessonProps } from '../context';
 import { PhenomenonPreview } from '../../../ui/PhenomenonPreview';
+import { IceRemedy } from '../IceRemedy';
 import { WaterRemedy } from '../WaterRemedy';
 import { HelpBar, HintCard } from '../HelpBar';
 import { GapCard, NoorSays, SourceNote, SpeakBox, Split, Title } from '../parts';
@@ -158,7 +159,9 @@ export function Prereq({ pack, journey, dispatch }: LessonProps) {
       <NoorSays mood={task.kind === 'remedy' ? 'encouraging' : 'curious'} text={t(line)} />
       <GapCard task={task}
         remedyContent={task.kind === 'remedy' && task.prereq.id === 'water_vapour'
-          ? <WaterRemedy busy={false} onDone={(reflection) => dispatch({ type: 'remedyDone', at: Date.now(), reflection })} /> : undefined}
+          ? <WaterRemedy busy={false} onDone={(reflection) => dispatch({ type: 'remedyDone', at: Date.now(), reflection })} />
+          : task.kind === 'remedy' && task.prereq.id === 'water_states'
+            ? <IceRemedy busy={false} onDone={(reflection) => dispatch({ type: 'remedyDone', at: Date.now(), reflection })} /> : undefined}
         onAnswer={(choice) => dispatch({ type: 'prereqAnswer', choice, at: Date.now() })} onRemedyDone={() => dispatch({ type: 'remedyDone', at: Date.now() })} />
     </div>
   );

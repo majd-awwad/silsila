@@ -34,7 +34,7 @@ import { quoteIn } from './text';
 export const DEFAULT_MODEL = 'google/gemini-3.8-flash';
 
 /** Server-side time limits. Each is below the browser's own limit, so a fallback still reaches the screen. */
-export const TIMEOUTS = { diagnose: 10_000, teach: 10_000, transfer: 10_000, activity: 25_000, lesson: 40_000 } as const;
+export const TIMEOUTS = { diagnose: 8_000, teach: 8_000, transfer: 8_000, activity: 25_000, lesson: 40_000 } as const;
 
 const env = (k: string) => (typeof process !== 'undefined' ? process.env[k] : undefined);
 export const llmKey = () => env('OPENROUTER_API_KEY') || env('LLM_API_KEY') || '';

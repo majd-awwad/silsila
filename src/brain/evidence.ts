@@ -56,6 +56,12 @@ export function evidenceOf(pack: ConceptPack, record: LearnerRecord, until = Inf
       for (const node of x?.targets ?? []) add(e.at, node, 'prediction', outcomeMatches(pack, e.predicted, e.real));
     } else if (e.type === 'quiz' && e.kind === 'post') {
       pack.postTest.forEach((q, i) => { if (q.node && e.answers[i] >= 0) add(e.at, q.node, 'quiz', e.answers[i] === q.correct); });
+    } else if (e.type === 'prereq') {
+      const p = pack.prerequisites.find((x) => x.id === e.prereqId);
+      const q = p && [...p.verify, p.recheck].find((x) => x.id === e.questionId);
+      const node = q?.node ?? p?.supports[0];
+      // a recheck follows the remediation activity, so it is never independent evidence
+      if (node) out.push({ at: e.at, node, kind: 'prerequisite', supports: e.correct, assisted: e.phase === 'recheck' || e.at >= helpAt });
     }
   }
   return out.sort((a, b) => a.at - b.at);
@@ -64,7 +70,13 @@ export function evidenceOf(pack: ConceptPack, record: LearnerRecord, until = Inf
 export function nodeStatus(items: Evidence[]): NodeStatus {
   if (!items.length) return 'not_assessed';
   const strong = items.filter((e) => STRONG.includes(e.kind));
-  if (!strong.length) return 'insufficient';
+  if (!strong.length) {
+    // a foundation check is the only evidence: report what it showed, never more than «with assistance»
+    const lastPrereq = items.filter((e) => e.kind === 'prerequisite').at(-1);
+    if (lastPrereq && !lastPrereq.supports) return 'misconception';
+    if (lastPrereq?.assisted) return 'assisted';
+    return 'insufficient';
+  }
   const lastStrong = strong.at(-1)!;
   if (!lastStrong.supports) return 'misconception';
   // only support gathered after the last thing the learner said against this concept counts

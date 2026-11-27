@@ -71,14 +71,14 @@ export const activity = (pack: ConceptPack, request: ActivityRequest): Promise<A
 export const lesson = (input: LessonInput): Promise<LessonDraft> =>
   ask('/api/lesson', input, LessonSchema, () => fallbackLesson(input), 45_000);
 
-export async function health(): Promise<Health> {
+export async function health(probe = false): Promise<Health> {
   const off: Health = { ai: false, model: null, stt: false, tts: false, store: null, online: false };
   if (offlineMode.get()) return off;
   try {
-    const r = await post('/api/health', {}, 5000);
+    const r = await post('/api/health', probe ? { probe: true } : {}, probe ? 14_000 : 5000);
     if (r.status !== 200) return off;
     const j = r.json as Partial<Health>;
-    return { ai: !!j.ai, model: j.model ?? null, stt: !!j.stt, tts: !!j.tts, store: j.store ?? null, online: true };
+    return { ai: !!j.ai, model: j.model ?? null, stt: !!j.stt, tts: !!j.tts, store: j.store ?? null, online: true, last: j.last ?? null, paused: !!j.paused };
   } catch {
     return off;
   }

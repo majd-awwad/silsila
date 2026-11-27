@@ -57,6 +57,7 @@ export function JudgeApp(_: { path?: string[] }) {
   const [packId, setPackId] = useState('condensation');
   const [room, setRoom] = useState<string | null>(() => teacherRooms.list()[0]?.code ?? null);
   const [busy, setBusy] = useState(false);
+  const [probing, setProbing] = useState(false);
   const [message, setMessage] = useState<{ tone: 'info' | 'error'; text: string } | null>(null);
 
   const check = () => { setStatus(null); health().then(setStatus); };
@@ -111,7 +112,19 @@ export function JudgeApp(_: { path?: string[] }) {
             {!status ? <span className="spinner" aria-label={t({ ar: 'عم يفحص', en: 'Checking' })} /> : (
               <>
                 {chip(status.online, t({ ar: 'السيرفر شغّال', en: 'Server reachable' }), t({ ar: 'بدون سيرفر', en: 'No server' }))}
-                {chip(status.ai, `${t({ ar: 'ذكاء اصطناعي', en: 'AI' })}: ${status.model ?? ''}`, t({ ar: 'بدون ذكاء اصطناعي (قواعد احتياطية)', en: 'No AI (offline rules)' }))}
+                {!status.ai
+                  ? chip(false, '', t({ ar: 'بدون ذكاء اصطناعي (قواعد احتياطية)', en: 'No AI (offline rules)' }))
+                  : <>
+                    {chip(true, `${t({ ar: 'مفتاح موجود', en: 'Key present' })}: ${status.model ?? ''}`, '')}
+                    {!status.last
+                      ? chip(false, '', t({ ar: 'لسا ما اتجرّب طلب حقيقي', en: 'No real request yet' }))
+                      : chip(status.last.ok && !status.paused,
+                        t({ ar: 'آخر طلب حقيقي نجح', en: 'Last real request worked' }),
+                        t({ ar: `آخر طلب فشل (${status.last.reason ?? '?'}): بنشتغل بالوضع الاحتياطي`, en: `Last request failed (${status.last.reason ?? '?'}): running on the offline fallback` }))}
+                    <button type="button" className="btn btn-ghost btn-sm" disabled={probing} onClick={() => { setProbing(true); health(true).then((h) => { setStatus(h); setProbing(false); }); }}>
+                      {probing ? t({ ar: 'عم يجرّب…', en: 'Testing…' }) : t({ ar: 'جرّب طلب حقيقي (بصرف شوي رصيد)', en: 'Test one real request (tiny cost)' })}
+                    </button>
+                  </>}
                 {chip(status.tts, t({ ar: 'صوت سحابي', en: 'Cloud voice' }), t({ ar: 'صوت المتصفح', en: 'Browser voice' }))}
                 {chip(status.store === 'redis', t({ ar: 'تخزين Redis', en: 'Redis store' }), t({ ar: 'صف حي على هاللابتوب', en: 'Live room on this laptop' }))}
               </>

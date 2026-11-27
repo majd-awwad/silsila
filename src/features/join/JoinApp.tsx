@@ -144,7 +144,9 @@ function ClassTaskView({ view, send, busy }: { view: StudentRoomView; send: (op:
     return <>
       {title(op === 'explain' ? { ar: 'احكي فكرتك', en: 'Share your idea' } : { ar: 'اشرح من جديد', en: 'Explain again' })}
       {op === 'explain' && !previous && <PhenomenonPreview pack={pack} />}
-      <NoorSays text={previous?.diagnosis.noor ?? t(pack.question)} />
+      {/* in class the solo-lesson lines would praise correctness or promise a test that the teacher has not opened yet */}
+      <NoorSays text={!previous ? t(pack.question) : needsMore ? previous.diagnosis.noor
+        : t({ ar: 'فهمت فكرتك وسجّلتها. رح نفحص الأفكار سوا مع الصف.', en: 'I understood your idea and saved it. We will test the ideas together as a class.' })} />
       {previous && <div className="card stack">
         <p dir="auto">{previous.text}</p>
         <ReasonChain steps={previous.diagnosis.chain} />

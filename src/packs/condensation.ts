@@ -132,9 +132,10 @@ export const condensation: ConceptPack = {
       },
       recheck: {
         id: 'ws_r',
-        q: t('التلج والمي اللي بالكاسة: شو الصح؟', 'Ice and water in a cup: which is true?'),
-        options: [t('التنين مي، بس بحالتين', 'Both are water, in two states'), t('التلج مش مي', 'Ice is not water'), t('بس السايلة هي مي', 'Only the liquid one is water')],
-        correct: 0,
+        // applied, and the other direction from ws_v2 (melting): freezing
+        q: t('حطّينا كاسة مي سايلة بالفريزر وصارت جامدة. شو نقدر نحكي؟', 'We put a cup of liquid water in the freezer and it turned solid. What can we say?'),
+        options: [t('صارت إشي تاني مش مي', 'It became something else, not water'), t('لسا مي، بس صارت صلبة', 'It is still water, now solid'), t('المي راحت وضل التلج لحاله', 'The water left and only ice remains')],
+        correct: 1,
         node: 'C1',
       },
     },

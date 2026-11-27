@@ -430,4 +430,10 @@ export const LessonDraft = z.object({
 });
 export type LessonDraft = z.infer<typeof LessonDraft>;
 
-export interface Health { ai: boolean; model: string | null; stt: boolean; tts: boolean; store: 'redis' | 'memory' | null; online: boolean }
+export interface Health {
+  ai: boolean; model: string | null; stt: boolean; tts: boolean; store: 'redis' | 'memory' | null; online: boolean;
+  /** the last real model call on the server: null until one happened. `ai` only says a key is present */
+  last?: { ok: boolean; at: number; reason: string | null } | null;
+  /** the model is skipped for a few seconds after a transport failure */
+  paused?: boolean;
+}

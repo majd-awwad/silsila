@@ -37,6 +37,11 @@
 .projector-title .eyebrow { color:#b8e7d4; }
 .projector-title h1 { font-size:clamp(2.3rem,6vw,5.2rem); line-height:1.1; margin-block:.25em .15em; }
 .projector-title p { font-size:clamp(1rem,2vw,1.6rem); }
+.projector-title.is-compact { display:flex; flex-wrap:wrap; align-items:baseline; gap:.25rem 1.25rem; }
+.projector-title.is-compact h1 { font-size:clamp(1.5rem,2.6vw,2.4rem); margin-block:0; }
+.projector-title.is-compact p { font-size:clamp(.95rem,1.4vw,1.2rem); }
+/* a 4:3 scene as wide as the board would be taller than a 1080p screen: cap its height and centre it */
+.projector .world-canvas { aspect-ratio:auto; inline-size:min(100%, calc(46dvh * 4 / 3)); block-size:min(46dvh, 75vw); margin-inline:auto; }
 .projector-board { border-radius:var(--radius-l); padding:clamp(1.1rem,3vw,2.4rem); background:var(--paper); color:var(--ink); }
 .projector-board h2 { font-size:clamp(1.55rem,3vw,3rem); line-height:1.2; }
 .projector-board h3 { font-size:clamp(1.3rem,2.2vw,2.3rem); }
@@ -48,6 +53,13 @@
 .projector-hypotheses { display:flex; flex-wrap:wrap; gap:.6rem; }
 .projector-hypotheses [aria-pressed=true] { border-color:var(--brand); background:var(--brand-soft); }
 @media (max-width:800px) { .live-steps { grid-template-columns:repeat(3,minmax(0,1fr)); } .live-steps li { padding:.45rem; } }
+/* phones: one row. Finished and upcoming stages shrink to their number, the current one keeps its name */
+@media (max-width:600px) {
+  .live-steps { display:flex; gap:.3rem; }
+  .live-steps li { flex:0 0 auto; font-size:0; gap:0; padding:.45rem .4rem; }
+  .live-steps li > span { font-size:.85rem; }
+  .live-steps li.is-now { flex:1 1 auto; font-size:.9rem; gap:.4rem; padding-inline:.5rem; }
+}
 @media (max-width:640px) {
   .live-now,.live-lobby { grid-template-columns:minmax(0,1fr); }
   .live-next,.live-lobby > section { border-inline-start:0; border-block-start:1px solid var(--line); padding-inline-start:0; padding-block-start:1rem; }

@@ -303,6 +303,25 @@ describe('evidence rules', () => {
     r = addEvent(r, { type: 'prereq', at: 4, prereqId: pre.id, questionId: pre.recheck.id, correct: false, phase: 'recheck' });
     expect(status()).toBe('persisting');
   });
+
+  it('foundation checks reach Learning DNA: a recovered gap is «assisted», never «not assessed» or «demonstrated»', () => {
+    const pre = cond.prerequisites.find((p) => p.id === 'water_states')!;
+    const node = pre.recheck.node ?? pre.supports[0];
+    const words = 'البرد نفسه بيصير مي';
+    let r = addEvent(start(), explain(diag({ relevance: 'answer', ideas: [], steps: noSteps }, words), 1));
+    r = addEvent(r, { type: 'prereq', at: 2, prereqId: pre.id, questionId: pre.verify[0].id, correct: false, phase: 'verify' });
+    expect(learningDNA(cond, r)[node].status).toBe('misconception');
+    r = addEvent(r, { type: 'remedy', at: 3, prereqId: pre.id });
+    const recovered = addEvent(r, { type: 'prereq', at: 4, prereqId: pre.id, questionId: pre.recheck.id, correct: true, phase: 'recheck' });
+    const dna = learningDNA(cond, recovered)[node];
+    expect(dna.status).toBe('assisted');
+    expect(dna.evidence.filter((e) => e.kind === 'prerequisite').at(-1)?.assisted).toBe(true);
+    const stuck = addEvent(r, { type: 'prereq', at: 4, prereqId: pre.id, questionId: pre.recheck.id, correct: false, phase: 'recheck' });
+    expect(learningDNA(cond, stuck)[node].status).toBe('misconception');
+    // a foundation check answered correctly without help is still only one weak piece of evidence
+    const fine = addEvent(start(), { type: 'prereq', at: 2, prereqId: pre.id, questionId: pre.verify[0].id, correct: true, phase: 'verify' });
+    expect(learningDNA(cond, fine)[node].status).toBe('insufficient');
+  });
 });
 
 /* ───────── teacher drafts ───────── */

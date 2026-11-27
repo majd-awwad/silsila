@@ -41,6 +41,8 @@ const progress: L[] = [
 ];
 function milestone(step: Step) {
   const at = STEPS.indexOf(step);
+  // the questions before the experiment come after the learner's own idea (journey: understood → pretest), so never step back to «Mystery»
+  if (step === 'pretest') return 1;
   return at < 3 ? 0 : at < 7 ? 1 : at < 13 ? 2 : at < 15 ? 3 : at < 18 ? 4 : 5;
 }
 

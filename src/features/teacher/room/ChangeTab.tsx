@@ -21,6 +21,10 @@ export function ChangeTab({ pack, records, goTab }: RoomTabProps) {
   const transfers = records.flatMap((r) => eventsOf(r, 'transfer').slice(-1));
   const checked = transfers.filter((x) => x.choiceCorrect !== null);
   const allSteps = transfers.filter((x) => x.steps.every((s) => s.met)).length;
+  // «shown» counts either signal; say which one it was, so a right choice with a wrong written explanation is not read as understanding
+  const both = transfers.filter((x) => x.steps.every((s) => s.met) && x.choiceCorrect === true).length;
+  const choiceOnly = transfers.filter((x) => !x.steps.every((s) => s.met) && x.choiceCorrect === true).length;
+  const writtenOnly = transfers.filter((x) => x.steps.every((s) => s.met) && x.choiceCorrect !== true).length;
   const follow = records.flatMap((r) => {
     const from = initialDiagnosis(r);
     if (!from) return [];
@@ -83,12 +87,18 @@ export function ChangeTab({ pack, records, goTab }: RoomTabProps) {
       <section className="stack !gap-2">
         <h3 className="subtitle">{t({ ar: 'الموقف الجديد', en: 'Transfer to a new situation' })}</h3>
         {summary.transferTried ? (
+          <>
           <dl className="tc-strip">
             <div><dt>{t({ ar: 'حاولوا', en: 'Attempted' })}</dt><dd>{n(summary.transferTried)} <small>{t({ ar: `من ${n(records.length)}`, en: `of ${records.length}` })}</small></dd></div>
             <div><dt>{t({ ar: 'عبّروا عن كل الحلقات', en: 'Expressed every scientific link' })}</dt><dd>{n(allSteps)}</dd></div>
             <div><dt>{t({ ar: 'سؤال التحقّق صح', en: 'Check question correct' })}</dt><dd>{n(checked.filter((x) => x.choiceCorrect).length)} <small>{t({ ar: `من ${n(checked.length)}`, en: `of ${checked.length}` })}</small></dd></div>
-            <div><dt>{t({ ar: 'ظهر التطبيق (واحد من الاثنين)', en: 'Transfer shown (either)' })}</dt><dd>{n(summary.transferShown)}</dd></div>
+            <div><dt>{t({ ar: 'الشرح والاختيار صح معاً', en: 'Written explanation and choice both right' })}</dt><dd>{n(both)}</dd></div>
           </dl>
+          {(choiceOnly > 0 || writtenOnly > 0) && <p className="help">{t({
+            ar: `${n(choiceOnly)} اختاروا صح لكن شرحهم المكتوب ناقص، و${n(writtenOnly)} شرحوا كامل لكن اختيارهم مش صح. ما بنحسبهم تطبيقاً كاملاً. الاختيار لحاله ممكن يكون تخمين.`,
+            en: `${choiceOnly} chose correctly but wrote an incomplete explanation; ${writtenOnly} explained fully but chose wrongly. They are not counted as a full application. A choice alone may be a guess.`,
+          })}</p>}
+        </>
         ) : <p className="muted">{t({ ar: 'لسا ما حدا جاوب على الموقف الجديد.', en: 'Nobody has answered the new situation yet.' })}</p>}
       </section>
 

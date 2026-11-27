@@ -57,8 +57,10 @@ function Projector({ code }: { code: string }) {
     {meta.sample && <SampleBanner />}
     {error && <Notice tone="warn">{t({ ar: 'جارٍ إعادة الاتصال. هذه آخر مرحلة مستلمة.', en: 'Reconnecting. This is the last received stage.' })}</Notice>}
     {fullscreenError && <Notice>{t({ ar: 'يمكن استخدام أمر ملء الشاشة في المتصفح.', en: 'Use the browser’s full-screen command.' })}</Notice>}
-    <div className="projector-title">
-      <span className="eyebrow">{t(PHASE_NAME[meta.phase])}</span>
+    {/* after joining, the lesson title shrinks so the simulation fits a 1080p screen without scrolling */}
+    <div className={`projector-title ${meta.phase === 'lobby' || meta.phase === 'explain' ? '' : 'is-compact'}`}>
+      {/* the teacher's «your approval» label must not be shown to the class */}
+      <span className="eyebrow">{t(meta.phase === 'approve' ? { ar: 'اختيار التجربة', en: 'Choosing the test' } : PHASE_NAME[meta.phase])}</span>
       <h1>{t(pack.title)}</h1>
       <p role="status">{submitted !== undefined
         ? t({ ar: `أرسل ${n(submitted)} من ${n(agg.participants)} إجابتهم`, en: `${n(submitted)} of ${n(agg.participants)} submitted` })

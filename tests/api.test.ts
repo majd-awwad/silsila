@@ -10,6 +10,7 @@ import { POST as teach } from '../api/teach';
 import { POST as transfer } from '../api/transfer';
 import { POST as tts } from '../api/tts';
 import { LIMITS, resetLimits } from '../api/_limit';
+import { resetAi } from '../api/_ai';
 import { resetStores } from '../api/_store';
 import { SAMPLE_CODE } from '../src/brain/sample';
 import { ROOM_TTL_MS } from '../src/brain/room';
@@ -28,6 +29,7 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   resetLimits();
   resetStores();
+  resetAi();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -121,7 +123,7 @@ describe('without a key everything still answers, and says so', () => {
   it('lesson, health, voice', async () => {
     const draft = LessonDraft.parse((await call(lesson, lessonBody)).body);
     expect([draft.source, draft.matchedPack]).toEqual(['fallback', 'condensation']);
-    expect((await call(health, {})).body).toEqual({ ai: false, model: null, stt: false, tts: false, store: 'memory' });
+    expect((await call(health, {})).body).toEqual({ ai: false, model: null, stt: false, tts: false, store: 'memory', last: null, paused: false });
     expect((await call(stt, { audio: 'AAAA' })).status).toBe(503);
     expect((await call(tts, { text: 'مرحبا' })).status).toBe(503);
   });
@@ -195,10 +197,24 @@ describe('with a model', () => {
       init.signal!.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
     }));
     const pending = call(diagnose, diagnoseBody());
-    await vi.advanceTimersByTimeAsync(10_500);
+    await vi.advanceTimersByTimeAsync(8_500);
     const r = await pending;
     expect(r.body).toMatchObject({ source: 'fallback', fallbackReason: 'ai_error' });
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).toContain('llm_timeout');
+  });
+
+  it('health tells «key present» apart from «last real call», and a network failure sends the next learners to the rules at once', async () => {
+    vi.stubEnv('OPENROUTER_API_KEY', KEY);
+    expect((await call(health, {})).body).toMatchObject({ ai: true, last: null, paused: false });
+    let calls = 0;
+    vi.stubGlobal('fetch', async () => { calls++; throw new TypeError('fetch failed'); });
+    expect((await call(diagnose, diagnoseBody())).body).toMatchObject({ source: 'fallback', fallbackReason: 'ai_error' });
+    expect(calls).toBe(1);
+    expect((await call(health, {})).body).toMatchObject({ ai: true, last: { ok: false, reason: 'llm_network' }, paused: true });
+    // the model is skipped now: no second network call, still labelled as the fallback
+    expect((await call(diagnose, diagnoseBody())).body).toMatchObject({ source: 'fallback', fallbackReason: 'ai_error' });
+    expect(calls).toBe(1);
+    expect(JSON.stringify((await call(health, {})).body)).not.toContain(KEY);
   });
 
   it('drafts activities and lessons; counts only, known ids only', async () => {

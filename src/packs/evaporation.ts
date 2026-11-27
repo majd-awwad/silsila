@@ -138,9 +138,10 @@ export const evaporation: ConceptPack = {
       },
       recheck: {
         id: 'ws_r',
-        q: t('أي جملة صح؟', 'Which sentence is true?'),
-        options: [t('المي ممكن تغيّر حالتها وبتضل مي', 'Water can change state and still be water'), t('لما المي تتغيّر بتبطّل موجودة', 'When water changes it stops existing')],
-        correct: 0,
+        // applied, and the other direction from ws_v2 (freezing): melting
+        q: t('حطّينا مكعّب تلج على صحن بالشمس، وبعد شوي صار في بركة صغيرة. شو صار بالتلج؟', 'We left an ice cube on a plate in the sun, and soon there was a small puddle. What happened to the ice?'),
+        options: [t('اختفى وطلعت مي من الصحن', 'It vanished and water came out of the plate'), t('ذاب وصار مي سايلة، نفس المي', 'It melted into liquid water, the same water'), t('صار حجر', 'It turned into stone')],
+        correct: 1,
         node: 'C1',
       },
     },
