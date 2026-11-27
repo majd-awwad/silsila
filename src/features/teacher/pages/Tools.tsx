@@ -103,7 +103,7 @@ export function LessonStudio() {
       <div className="stack no-print">
       <form className="card stack" onSubmit={(e) => { e.preventDefault(); void generate(); }}>
         <h2 className="subtitle">{t({ ar: 'إعدادات الدرس', en: 'Lesson brief' })}</h2>
-        <label className="field"><span>{t({ ar: 'استيراد نص الدرس (.txt)', en: 'Import lesson text (.txt)' })}</span><input className="input" type="file" accept=".txt,text/plain" onChange={async (event) => {
+        <label className="field"><span>{t({ ar: 'استيراد نص الدرس (.txt). للصور وPDF: الصق النص بالحقل (رفع الصور وPDF رؤية مستقبلية)', en: 'Import lesson text (.txt). For images and PDFs paste the text (uploading them is a future vision)' })}</span><input className="input" type="file" accept=".txt,text/plain" onChange={async (event) => {
           const file = event.target.files?.[0];
           if (!file) return;
           try {
@@ -132,6 +132,7 @@ export function LessonStudio() {
         <h2 className="subtitle">{t({ ar: 'معاينة المسودة وتحريرها', en: 'Preview and edit draft' })}</h2>
         <Notice>{draft.source === 'ai' ? t({ ar: 'مسودّة من الذكاء الاصطناعي.', en: 'AI-generated draft.' }) : t({ ar: 'مسودّة من قالب.', en: 'Template-based draft.' })}{' '}
           {draft.matchedPack && Object.hasOwn(PACKS, draft.matchedPack) ? t({ ar: 'في حزمة تفاعلية جاهزة لهالموضوع.', en: 'A supported concept pack is available.' }) : t({ ar: 'هالموضوع بحاجة لمراجعة، وما إله محاكاة تفاعلية جاهزة.', en: 'This topic needs review and has no supported interactive simulation.' })}</Notice>
+        <p className="help" role="note">{t({ ar: 'مسودة يراجعها المعلّم، مش محاكاة جديدة: الأهداف والمفاهيم والأخطاء المتوقّعة والمتطلبات السابقة بتنكتب من النص، والمحاكاة التفاعلية بتتوفّر بس إذا الموضوع بيطابق حزمة موجودة.', en: 'A draft for the teacher to review, not a new simulation: objectives, concepts, likely mistakes and prerequisites are drafted from the text, and an interactive simulation exists only when the topic matches an existing pack.' })}</p>
         <input className="input" aria-label={t({ ar: 'عنوان المسودّة', en: 'Draft title' })} value={draft.title} onChange={(e) => change({ ...draft, title: e.target.value })} />
         {draftLists.map((key) => <details key={key} open={key === 'objectives' || undefined}><summary>{t(DRAFT_LABELS[key])}</summary><div className="stack">
           <textarea className="textarea" aria-label={t(DRAFT_LABELS[key])} rows={3} value={draft[key].join('\n')} onChange={(e) => change({ ...draft, [key]: e.target.value.split('\n').slice(0, 10) })} />
