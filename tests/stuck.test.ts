@@ -1,100 +1,67 @@
 import { describe, expect, it } from 'vitest';
-import { heuristicDiagnose } from '../src/brain/heuristic';
+import { addEvent, eventsOf } from '../src/brain/records';
 import { parseLooseJson } from '../src/brain/server';
-import { contradictedCount, initialState, reducer, STUCK_AFTER } from '../src/flow/machine';
-import type { State } from '../src/flow/machine';
+import { STUCK_AFTER, gotGuidance, stuckCount } from '../src/flow/derive';
+import { journeyReducer, startJourney } from '../src/flow/journey';
 import { reveals } from '../src/mode';
-import { getPack, PACK_LIST } from '../src/packs';
-import { entryFromSession } from '../src/brain/classInsights';
+import { PACK_LIST, getPack } from '../src/packs';
+import type { ConceptPack } from '../src/packs/types';
 
-const ctx = (id: string) => ({ pack: id, phase: 'explain' as const, previous: [], experiments: [] });
-const run = (n: number, contradicted = true) => ({ preset: null, cond: { x: String(n) }, predicted: 'a', real: 'b', contradicted, at: n });
-const wrongIdea: Record<string, string> = { condensation: 'المي بتنز من الكاسة', evaporation: 'المي بتخلص لحالها' };
+const start = (pack: ConceptPack) => startJourney(pack, { id: 'p1', alias: 'نجمة', grade: 4, quick: true, lang: 'ar', at: 0 });
+const result = (n: number, contradicted = true) => ({
+  type: 'observe' as const, at: n, experimentId: null, cond: { x: String(n) },
+  predicted: 'a', hypothesis: contradicted ? 'a' : 'b', real: 'b', note: '',
+});
 
-function labState(packId: string): State {
-  const pack = getPack(packId);
-  let s = reducer(initialState, { type: 'START', pack: packId, pseudonym: 'نجمة', grade: 4, classCode: null, quick: true });
-  s = reducer(s, { type: 'DIAGNOSED', text: wrongIdea[packId], diag: heuristicDiagnose(pack, wrongIdea[packId], ctx(packId)) });
-  expect(s.lab).toBe('explain');
-  return s;
-}
-
-describe('Noor explains when the child is stuck (decision of 25/11)', () => {
+describe('guided explanation', () => {
   for (const pack of PACK_LIST) {
-    it(`${pack.id}: after ${STUCK_AFTER} different experiments that change nothing, Noor explains once`, () => {
-      let s = labState(pack.id);
-      for (let i = 1; i < STUCK_AFTER; i++) {
-        s = reducer(s, { type: 'EXPERIMENT_RESULT', run: run(i), verdict: 'v', noor: 'ask again' });
-        expect(s.session?.scaffolded).toBe(false);
-        expect(s.messages.at(-1)?.text).toBe('ask again');
-      }
-      s = reducer(s, { type: 'EXPERIMENT_RESULT', run: run(STUCK_AFTER), verdict: 'v', noor: 'ask again' });
-      expect(s.session?.scaffolded).toBe(true);
-      expect(s.messages.at(-1)?.text).toBe(pack.noor.reveal);
-      // the lab stays open: the child retells it in their own words; Noor does not repeat herself
-      expect(s.lab).toBe('explain');
-      const again = reducer(s, { type: 'EXPERIMENT_RESULT', run: run(STUCK_AFTER + 1), verdict: 'v', noor: 'ask again' });
-      expect(again.messages.filter((m) => m.text === pack.noor.reveal)).toHaveLength(1);
+    it(pack.id + ' guides after three different contradictions, once', () => {
+      const s = start(pack);
+      const record = [1, 2, 3].reduce((r, n) => addEvent(r, result(n)), s.record);
+      const next = journeyReducer(pack, { ...s, step: 'reveal', record }, { type: 'continue', at: 4 });
+      expect(next.step).toBe('guided');
+      expect(gotGuidance(next.record)).toBe(true);
+      const repeated = journeyReducer(pack, { ...next, step: 'reveal', record: addEvent(next.record, result(5)) }, { type: 'continue', at: 6 });
+      expect(repeated.step).toBe('reflect');
+      expect(eventsOf(repeated.record, 'assist')).toHaveLength(1);
     });
   }
-
-  it('the same experiment repeated does not count as progress towards "stuck"', () => {
-    expect(contradictedCount([run(1), run(1), run(1)])).toBe(1);
-    expect(contradictedCount([run(1), run(2, false), run(3)])).toBe(2);
-  });
-
-  it('a child who already explains it correctly is never scaffolded', () => {
+  it('counts only distinct experiments with contradictory evidence', () => {
     const pack = getPack('condensation');
-    let s = reducer(initialState, { type: 'START', pack: pack.id, pseudonym: 'نجمة', grade: 4, classCode: null, quick: true });
-    s = reducer(s, { type: 'DIAGNOSED', text: 'ok', diag: heuristicDiagnose(pack, 'في مي بالهوا بتبرد ع الكاسة وبتصير نقط', ctx(pack.id)) });
-    expect(s.lab).toBe('teach');
-    for (let i = 1; i <= 4; i++) s = reducer(s, { type: 'EXPERIMENT_RESULT', run: run(i), verdict: 'v' });
-    expect(s.session?.scaffolded).toBe(false);
+    const { record } = start(pack);
+    expect(stuckCount(pack, [1, 1, 1].reduce((r, n) => addEvent(r, result(n)), record))).toBe(1);
+    expect(stuckCount(pack, [result(1), result(2, false), result(3)].reduce(addEvent, record))).toBe(2);
+    expect(journeyReducer(pack, { ...start(pack), step: 'reveal', record }, { type: 'continue', at: 4 }).step).toBe('reflect');
   });
-
-  it('teaching Noor fails 3 times → Noor explains, flags the child for the teacher, and moves to her challenge', () => {
+  it('records guidance after repeated unsuccessful replies to Noor', () => {
     const pack = getPack('condensation');
-    let s = reducer(initialState, { type: 'START', pack: pack.id, pseudonym: 'نجمة', grade: 4, classCode: null, quick: true });
-    s = reducer(s, { type: 'DIAGNOSED', text: 'ok', diag: heuristicDiagnose(pack, 'في مي بالهوا بتبرد ع الكاسة وبتصير نقط', ctx(pack.id)) });
-    const miss = { caught: false, noor: 'لسا محتارة', rubric: { s1: 0 as const, s2: 0 as const, s3: 0 as const }, source: 'fallback' as const };
-    for (let i = 1; i < STUCK_AFTER; i++) {
-      s = reducer(s, { type: 'TAUGHT', text: 'مش عارف', result: miss });
-      expect(s.lab).toBe('teach');
-      expect(s.session?.scaffolded).toBe(false);
+    let s = { ...start(pack), step: 'teach' as const } as ReturnType<typeof start>;
+    for (let i = 0; i < STUCK_AFTER; i++) {
+      expect(gotGuidance(s.record)).toBe(false);
+      s = journeyReducer(pack, s, { type: 'taught', at: i, text: 'مش عارف', result: { caught: false, steps: [], source: 'fallback' } });
     }
-    s = reducer(s, { type: 'TAUGHT', text: 'مش عارف', result: miss });
-    expect(s.lab).toBe('challenge');
-    expect(s.session?.scaffolded).toBe(true);
-    expect(s.messages.some((m) => m.text === pack.noor.reveal)).toBe(true);
-    expect(s.teachings.join(' ')).toContain(pack.scienceChain[0]);
-    expect(entryFromSession(s.session!).needsHelp).toBe(true);
+    expect(s.step).toBe('teach');
+    expect(gotGuidance(s.record)).toBe(true);
   });
 });
 
-describe('child mode vs judge mode', () => {
-  it('child mode keeps the scientific chain and the engine hidden while the child is still explaining', () => {
-    const r = reveals({ judge: false, lab: 'explain', contradicted: false });
-    expect(r).toEqual({ science: false, wrongStep: false, engine: false });
+describe('child and judge views', () => {
+  it('shows a child a marked link only after their own experiment contradicts it', () => {
+    expect(reveals({ judge: false, contradicted: false })).toEqual({ science: false, wrongStep: false, engine: false });
+    expect(reveals({ judge: false, contradicted: true })).toEqual({ science: false, wrongStep: true, engine: false });
   });
-  it('the wrong step appears only after an experiment showed it, the science chain only after the child fixed their idea', () => {
-    expect(reveals({ judge: false, lab: 'explain', contradicted: true })).toEqual({ science: false, wrongStep: true, engine: false });
-    expect(reveals({ judge: false, lab: 'teach', contradicted: true })).toEqual({ science: true, wrongStep: true, engine: false });
-  });
-  it('the engine (table, confidence, best experiment) is never shown to a child', () => {
-    for (const lab of ['explain', 'teach', 'challenge', 'transfer', 'done']) expect(reveals({ judge: false, lab, contradicted: true }).engine).toBe(false);
-  });
-  it('judge mode shows everything', () => {
-    expect(reveals({ judge: true, lab: 'explain', contradicted: false })).toEqual({ science: true, wrongStep: true, engine: true });
+  it('shows the reasoning panel in judge mode', () => {
+    expect(reveals({ judge: true, contradicted: false })).toEqual({ science: true, wrongStep: true, engine: true });
   });
 });
 
-describe('model output parsing', () => {
-  it('accepts plain JSON, fenced JSON and JSON with chatter around it', () => {
+describe('provider response parsing', () => {
+  it('accepts plain, fenced and embedded JSON', () => {
     expect(parseLooseJson('{"a":1}')).toEqual({ a: 1 });
     expect(parseLooseJson('```json\n{"a":1}\n```')).toEqual({ a: 1 });
     expect(parseLooseJson('Here you go: {"a":{"b":2}} done')).toEqual({ a: { b: 2 } });
   });
-  it('rejects text with no JSON', () => {
+  it('rejects missing or invalid JSON', () => {
     expect(parseLooseJson('sorry, I cannot')).toBeNull();
     expect(parseLooseJson('{broken')).toBeNull();
   });

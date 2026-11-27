@@ -1,151 +1,150 @@
 /**
- * Turns whatever the model (or the fallback) returned into a valid result for the pack.
- * Nothing from the model reaches the screen without passing through here.
+ * Turns whatever the language model (or the offline rules) extracted into a validated Diagnosis.
+ * Nothing from the model reaches the screen without passing through here:
+ *  - an idea or a scientific step counts only with a quote that really appears in the learner's words;
+ *  - the status is derived by code from that evidence, never taken from the model;
+ *  - every line Noor says is authored pack text, so the model cannot give the answer away;
+ *  - the learner's causal chain is dropped if it introduces answer words the learner did not use.
  */
-import type { ActivityPlan, BrainContext, ChainId, ChallengeResult, ChildModel, Diagnosis, DiagnosisStatus, LinkState, Rubric, TeachResult, TransferResult } from '../contracts';
-import { CHAIN_IDS, Diagnosis as DiagnosisSchema, DiagnosisStatus as StatusSchema } from '../contracts';
+import type { BrainContext, ChildModel, Diagnosis, DiagnosisStatus, Lang, StepEvidence, TeachResult, TransferResult } from '../contracts';
+import { Diagnosis as DiagnosisSchema } from '../contracts';
 import type { ConceptPack } from '../packs/types';
-import { pickBestPreset } from './world';
+import { OFF_TOPIC, normaliseText, quoteIn } from './text';
 
-type Raw = Record<string, unknown>;
-
-/** Noor must never give the answer away before the child does. */
-export function guardNoor(pack: ConceptPack, noor: string, childTexts: string[], status: DiagnosisStatus): string {
-  const line = (noor || '').trim();
-  const fallback = pack.noor.clarifyLadder[0];
-  if (!line) return fallback;
-  if (status === 'correct') return line;
-  const childSaid = childTexts.some((t) => pack.answerWords.test(t));
-  if (!childSaid && pack.answerWords.test(line)) return 'فهمت عليك! يلا نجرّب بالمختبر: شو بتتوقّع يصير لو غيّرنا إشي؟';
-  return line.length > 260 ? line.slice(0, 260).replace(/\s+\S*$/, '') + '؟' : line;
+/** What the model (or the offline rules) is asked to extract. All of it is untrusted. */
+export interface RawDiagnosis {
+  /** answer · unclear (vague, don't know) · offtopic · unsupported (a real idea outside the list) */
+  relevance?: unknown;
+  /** true when the learner asserts an idea and its opposite */
+  contradiction?: unknown;
+  /** [{id, evidence}] — evidence is copied from the learner's words */
+  ideas?: unknown;
+  /** idea ids the learner explicitly rejected */
+  rejected?: unknown;
+  /** [{met, evidence}] × 3 */
+  steps?: unknown;
+  /** the learner's causal story, 2–4 short steps in their logic */
+  chain?: unknown;
+  wrong_step?: unknown;
+  clarify_id?: unknown;
 }
 
-const bit = (x: unknown): 0 | 1 => (x === 1 || x === true || x === '1' ? 1 : 0);
-export function normaliseRubric(r: unknown): Rubric {
-  const o = (r && typeof r === 'object' ? r : {}) as Raw;
-  return { s1: bit(o.s1), s2: bit(o.s2), s3: bit(o.s3) };
+type Obj = Record<string, unknown>;
+const asObj = (x: unknown): Obj => (x && typeof x === 'object' ? (x as Obj) : {});
+const asList = (x: unknown): unknown[] => (Array.isArray(x) ? x : []);
+
+export const correctIdeaId = (pack: ConceptPack): string =>
+  Object.keys(pack.ideas).find((id) => pack.ideas[id].correct) ?? pack.correctModel.sources[0];
+
+export function normaliseSteps(raw: unknown, text: string): StepEvidence[] {
+  const list = asList(raw);
+  return [0, 1, 2].map((i) => {
+    const s = asObj(list[i]);
+    const evidence = String(s.evidence ?? '').trim().slice(0, 160);
+    const met = (s.met === true || s.met === 1) && quoteIn(text, evidence);
+    return { met, evidence: met ? evidence : '' };
+  });
 }
 
-function normaliseChain(c: unknown): Record<ChainId, LinkState> {
-  const o = (c && typeof c === 'object' ? c : {}) as Raw;
-  const out = {} as Record<ChainId, LinkState>;
-  for (const id of CHAIN_IDS) {
-    const v = o[id];
-    out[id] = v === 'ok' || v === 'missing' || v === 'wrong' ? v : 'unknown';
-  }
-  return out;
-}
+export interface NormaliseMeta { source: 'ai' | 'fallback'; fallbackReason?: Diagnosis['fallbackReason'] }
 
-const shortLine = (s: unknown) => String(s ?? '').trim().slice(0, 70);
+export function normaliseDiagnosis(pack: ConceptPack, raw: RawDiagnosis, text: string, ctx: BrainContext, meta: NormaliseMeta): Diagnosis {
+  const lang: Lang = ctx.lang;
+  const correctId = correctIdeaId(pack);
+  const rejected = [...new Set(asList(raw.rejected).filter((x): x is string => typeof x === 'string' && Object.hasOwn(pack.ideas, x)))];
 
-export function normaliseDiagnosis(pack: ConceptPack, raw: Raw, childText: string, ctx: BrainContext, source: 'ai' | 'fallback'): Diagnosis {
-  let status: DiagnosisStatus = StatusSchema.safeParse(raw.status).success ? (raw.status as DiagnosisStatus) : 'clarify';
-  const conf = Number(raw.confidence);
-  const confidence = Number.isFinite(conf) ? Math.min(1, Math.max(0, conf)) : 0.5;
-  let caption = String(raw.caption ?? '').slice(0, 200);
-  const childTexts = [childText, ...ctx.previous.map((p) => p.text)];
-  const clarifiesSoFar = ctx.previous.filter((p) => p.status === 'clarify').length;
+  const seen = new Set<string>();
+  const ideas = asList(raw.ideas)
+    .map(asObj)
+    .filter((i) => typeof i.id === 'string' && Object.hasOwn(pack.ideas, i.id))
+    .map((i) => ({ id: i.id as string, evidence: String(i.evidence ?? '').trim().slice(0, 160) }))
+    .filter((i) => quoteIn(text, i.evidence) && !seen.has(i.id) && !!seen.add(i.id))
+    .slice(0, 3);
+  const steps = normaliseSteps(raw.steps, text);
 
-  const srcs = (Array.isArray(raw.sources) ? raw.sources : []).filter((s): s is string => typeof s === 'string' && s in pack.sources).slice(0, 2);
-  const path = typeof raw.path === 'string' && raw.path in pack.paths ? raw.path : Object.keys(pack.paths)[0];
-  const requires = (Array.isArray(raw.requires) ? raw.requires : []).filter((s): s is string => typeof s === 'string' && s in pack.requires).slice(0, 2);
+  const contradicted = raw.contradiction === true || ideas.some((i) => rejected.includes(i.id));
+  const wrong = ideas.filter((i) => i.id !== correctId);
+  const met = steps.filter((s) => s.met).length;
+  const mentionsCorrect = ideas.some((i) => i.id === correctId);
 
-  let noor = String(raw.noor ?? '');
-  // Unsure about an idea → confirm instead of assuming (ChatGPT review, problem 3)
-  if (status === 'model' && confidence < 0.4) {
-    status = 'clarify';
-    noor = caption ? `بس لأتأكد إني فهمت: ${caption.replace('هيك إنت شايفها: ', '').replace(/\.$/, '')}؟` : pack.noor.clarifyLadder[Math.min(2, clarifiesSoFar)];
-    caption = '';
-  }
-  if ((status === 'clarify' || status === 'offtopic') && !noor.trim()) noor = pack.noor.clarifyLadder[Math.min(2, clarifiesSoFar)];
+  let status: DiagnosisStatus;
+  if (contradicted) status = 'contradictory';
+  else if (wrong.length >= 2) status = 'multiple';
+  else if (wrong.length === 1) status = 'misconception';
+  else if (met === 3) status = 'correct';
+  else if (met > 0 || mentionsCorrect) status = 'partial';
+  else if (raw.relevance === 'offtopic' || OFF_TOPIC.test(normaliseText(text))) status = 'offtopic';
+  else if (raw.relevance === 'unsupported') status = 'unsupported';
+  else status = 'insufficient';
 
   let model: ChildModel | null = null;
-  if (status === 'correct') model = pack.correctModel;
-  else if (status === 'model') model = { sources: srcs.length ? srcs : [Object.keys(pack.sources).at(-1)!], path, requires };
+  if (status === 'correct' || status === 'partial') model = pack.correctModel;
+  else if (status === 'misconception' || status === 'multiple') {
+    const parts = wrong.slice(0, 2).map((i) => pack.ideas[i.id].model);
+    model = {
+      sources: [...new Set(parts.flatMap((m) => m.sources))].slice(0, 2),
+      path: parts[0].path,
+      requires: [...new Set(parts.flatMap((m) => m.requires))].slice(0, 3),
+    };
+  }
 
-  // the child's own causal chain (Mental Model Engine)
-  let childChain = (Array.isArray(raw.child_chain) ? raw.child_chain : []).map(shortLine).filter(Boolean).slice(0, 4);
+  const first = wrong[0] ? pack.ideas[wrong[0].id] : null;
+  let caption = '';
+  if (status === 'misconception' || status === 'multiple') caption = wrong.slice(0, 2).map((i) => pack.ideas[i.id].mirror[lang]).join(' ');
+  else if (status === 'correct') caption = pack.ideas[correctId].mirror[lang];
+  // In a partial explanation, show the learner's actual evidence before asking for the missing link.
+  else if (status === 'partial') caption = [...new Set(steps.filter((s) => s.met).map((s) => s.evidence))].join(' · ');
+
+  let noor: string;
+  let clarifyId: string | null = null;
+  if (status === 'misconception' || status === 'multiple') noor = pack.noor.invite[lang];
+  else if (status === 'correct') noor = pack.noor.praise[lang];
+  else if (status === 'partial') {
+    const missing = steps.findIndex((s) => !s.met);
+    noor = `${pack.noor.partial[lang]} ${pack.steps[Math.max(0, missing)].noorAsks[lang]}`;
+  } else if (status === 'contradictory') noor = pack.noor.contradiction[lang];
+  else if (status === 'offtopic') noor = pack.noor.offtopic[lang];
+  else if (status === 'unsupported') noor = pack.noor.unsupported[lang];
+  else {
+    const asked = ctx.previous.filter((p) => p.status === 'insufficient').map(() => 1).length;
+    const chosen = pack.clarify.find((c) => c.id === raw.clarify_id) ?? pack.clarify[Math.min(pack.clarify.length - 1, asked)];
+    clarifyId = chosen.id;
+    noor = chosen.q[lang];
+  }
+
+  // the learner's causal chain: theirs when grounded, otherwise the authored story of the identified idea
+  const childSaysAnswer = pack.answerWords.test(text);
+  let chain = asList(raw.chain).map((s) => String(s ?? '').trim().slice(0, 80)).filter(Boolean).slice(0, 4);
+  if (!childSaysAnswer && chain.some((s) => pack.answerWords.test(s))) chain = [];
   let wrongStep: number | null = Number.isInteger(raw.wrong_step) ? (raw.wrong_step as number) : null;
-  if (model && childChain.length < 2) {
-    const part = pack.sources[model.sources[0]];
-    childChain = [...part.story];
-    wrongStep = part.wrongStep;
-  }
-  if (!model) { childChain = []; wrongStep = null; }
-  if (status === 'correct') wrongStep = null;
-  if (wrongStep !== null && (wrongStep < 0 || wrongStep >= childChain.length)) wrongStep = null;
-
-  // the experiment that breaks the idea is chosen by the deterministic engine, never the model
-  const best = status === 'model' && model ? pickBestPreset(pack, model, ctx.experiments)?.id ?? null : null;
-
-  const chain = normaliseChain(raw.chain);
-  let broken = CHAIN_IDS.includes(raw.broken_link as ChainId) ? (raw.broken_link as ChainId) : null;
-  if (status === 'correct') broken = null;
-  else if (!broken) broken = CHAIN_IDS.find((c) => chain[c] === 'missing' || chain[c] === 'wrong') ?? null;
-  // Which link is broken follows from the child's idea, so code decides it (models disagreed with each other here):
-  // a wrong source means the chain breaks at C2; with the right source it breaks later, at C3 or after.
-  if (status === 'model' && model) {
-    if (!model.sources.includes(pack.correctModel.sources[0])) {
-      broken = 'C2';
-      if (chain.C2 !== 'wrong') chain.C2 = 'missing';
-    } else {
-      const later = CHAIN_IDS.slice(2);
-      if (!broken || !later.includes(broken)) broken = later.find((c) => chain[c] === 'missing' || chain[c] === 'wrong') ?? 'C3';
+  if (status === 'misconception' || status === 'multiple') {
+    if (chain.length < 2 && first) {
+      chain = first.story.map((s) => s[lang]);
+      wrongStep = first.wrongStep;
     }
+    if (wrongStep === null && first) wrongStep = Math.min(first.wrongStep ?? 0, chain.length - 1);
+  } else if (status === 'correct' || status === 'partial') {
+    if (chain.length < 2) chain = steps.filter((s) => s.met).map((s) => s.evidence).slice(0, 4);
+    wrongStep = null;
+  } else {
+    chain = [];
+    wrongStep = null;
   }
+  if (wrongStep !== null && (wrongStep < 0 || wrongStep >= chain.length)) wrongStep = null;
 
-  const diag: Diagnosis = {
-    pack: pack.id,
-    status,
-    caption: model ? caption : '',
-    model,
-    child_chain: childChain,
-    wrong_step: wrongStep,
-    chain,
-    broken_link: broken,
-    best_experiment: best,
-    noor: guardNoor(pack, noor, childTexts, status),
-    rubric: normaliseRubric(raw.rubric),
-    confidence,
-    evidence: String(raw.evidence ?? '').slice(0, 160),
-    source,
-  };
-  return DiagnosisSchema.parse(diag);
+  const words = text.trim().split(/\s+/).length;
+  const evidence: Diagnosis['evidence'] = !ideas.length && !met ? 'none' : words < 3 || (!wrong.length && met === 1) ? 'weak' : 'clear';
+
+  return DiagnosisSchema.parse({
+    pack: pack.id, lang, status, ideas, rejected, steps, model, chain, wrongStep, caption, noor, clarifyId, evidence,
+    source: meta.source, ...(meta.fallbackReason ? { fallbackReason: meta.fallbackReason } : {}),
+  });
 }
 
-export function normaliseTeach(pack: ConceptPack, raw: Raw, source: 'ai' | 'fallback'): TeachResult {
-  const caught = raw.caught === true;
-  return { caught, noor: String(raw.noor ?? '').trim() || (caught ? pack.noor.caughtThanks : pack.noor.stillConfused), rubric: normaliseRubric(raw.rubric), source };
+export function normaliseTeach(raw: Obj, text: string, source: 'ai' | 'fallback'): TeachResult {
+  return { caught: raw.caught === true, steps: normaliseSteps(raw.steps, text), source };
 }
 
-export function normaliseChallenge(pack: ConceptPack, raw: Raw, source: 'ai' | 'fallback'): ChallengeResult {
-  const missing = [...new Set((Array.isArray(raw.missing) ? raw.missing : []).filter((x): x is number => x === 0 || x === 1 || x === 2))].sort();
-  return {
-    answer: String(raw.answer ?? '').trim().slice(0, 300) || pack.challenge.correctAnswer,
-    missing,
-    ask: missing.length ? String(raw.ask ?? '').trim().slice(0, 200) || `بس ما فهمت منك: ${pack.scienceChain[missing[0]]}؟ كيف بيصير هاد؟` : '',
-    source,
-  };
-}
-
-export function normaliseTransfer(raw: Raw, source: 'ai' | 'fallback'): TransferResult {
-  const rubric = normaliseRubric(raw.rubric);
-  return { rubric, score: rubric.s1 + rubric.s2 + rubric.s3, noor: String(raw.noor ?? '').trim().slice(0, 300) || 'شكراً! حلو كثير.', source };
-}
-
-export function normaliseActivity(raw: Raw, fallback: Omit<ActivityPlan, 'source'>, source: 'ai' | 'fallback'): ActivityPlan {
-  const steps = (Array.isArray(raw.steps) ? raw.steps : [])
-    .map((s) => s as Raw)
-    .map((s) => ({ minutes: Math.max(1, Math.min(15, Math.round(Number(s.minutes) || 3))), title: shortLine(s.title), detail: String(s.detail ?? '').slice(0, 260) }))
-    .filter((s) => s.title && s.detail)
-    .slice(0, 6);
-  if (steps.length < 2 || !raw.title) return { ...fallback, source: 'fallback' };
-  return {
-    title: shortLine(raw.title),
-    goal: String(raw.goal ?? '').slice(0, 200),
-    materials: (Array.isArray(raw.materials) ? raw.materials : []).map(shortLine).filter(Boolean).slice(0, 8),
-    steps,
-    check: String(raw.check ?? '').slice(0, 200),
-    source,
-  };
+export function normaliseTransfer(raw: Obj, text: string, source: 'ai' | 'fallback'): TransferResult {
+  return { steps: normaliseSteps(raw.steps, text), source };
 }

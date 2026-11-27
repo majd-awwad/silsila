@@ -11,7 +11,7 @@
     "test": "vitest run",
     "eval": "tsx scripts/run-evals.ts",
     "eval:ai": "tsx scripts/run-evals.ts --ai",
-    "eval:models": "tsx scripts/run-evals.ts",
+    "eval:models": "tsx scripts/run-evals.ts --bakeoff",
     "voice:samples": "tsx scripts/voice-samples.ts",
     "check": "npm run typecheck && npm run test && npm run build"
   },

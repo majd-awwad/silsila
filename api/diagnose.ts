@@ -1,19 +1,18 @@
-/** POST /api/diagnose {text, context} → Diagnosis. On any AI failure returns the offline fallback (still 200). */
+/** POST /api/diagnose {text, context} → Diagnosis. Without a key or on any AI failure: the offline rules (200). */
 import { DiagnoseRequest } from '../src/contracts';
-import { heuristicDiagnose } from '../src/brain/heuristic';
-import { diagnoseWithLLM } from '../src/brain/server';
-import { getPack, PACKS } from '../src/packs';
-import { bad, logFallback } from './_util';
+import { diagnose } from './_ai';
+import { accept, error, json, logError, packById } from './_util';
 
 export async function POST(request: Request): Promise<Response> {
-  let body: DiagnoseRequest;
-  try { body = DiagnoseRequest.parse(await request.json()); } catch { return bad(); }
-  if (!PACKS[body.context.pack]) return bad();
-  const pack = getPack(body.context.pack);
+  const got = await accept(request, DiagnoseRequest, 'ai', 32_768);
+  if ('refuse' in got) return got.refuse;
+  const { text, context } = got.input;
+  const pack = packById(context.pack);
+  if (!pack || !text.trim()) return error('bad_request', 400);
   try {
-    return Response.json(await diagnoseWithLLM(pack, body.text, body.context));
+    return json(await diagnose(pack, text.trim(), context));
   } catch (e) {
-    logFallback('diagnose', e);
-    return Response.json(heuristicDiagnose(pack, body.text, body.context));
+    logError('diagnose', e);
+    return error('server_error', 500);
   }
 }

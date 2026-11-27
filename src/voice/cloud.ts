@@ -1,7 +1,7 @@
 /**
  * Optional cloud voice through our own /api (OpenRouter behind it). Used only when /api/health says it is configured.
  * If the cloud voice fails, Noor falls back to the browser's voice. The child's audio is sent for transcription
- * and never stored. Same interfaces as the browser versions, so the Lab does not care which one is active.
+ * and never stored. Same interfaces as the browser versions, so the screens do not care which one is active.
  */
 import type { Dictation } from './stt';
 import type { Voice } from './tts';
@@ -64,7 +64,7 @@ function watchSilence(stream: MediaStream, stop: () => void): () => void {
 }
 
 export function createCloudDictation(): Dictation | null {
-  if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) return null;
+  if (typeof MediaRecorder === 'undefined' || typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return null;
   let stopNow: (() => void) | null = null;
   return {
     start(onText, onEnd) {
@@ -87,13 +87,18 @@ export function createCloudDictation(): Dictation | null {
             const { blob, format } = await toUpload(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
             const audio = await blobToBase64(blob);
             const r = await fetch('/api/stt', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ audio, format }) });
-            if (r.ok) onText(((await r.json()) as { text?: string }).text ?? '', true);
-          } catch { /* the child can type instead */ }
+            if (!r.ok) throw new Error('stt');
+            onText(((await r.json()) as { text?: string }).text ?? '', true);
+          } catch {
+            // the child can type instead
+            onEnd('failed');
+            return;
+          }
           onEnd();
         };
         rec.start();
         unwatch = watchSilence(s, stop);
-      }).catch(() => onEnd());
+      }).catch(() => onEnd('blocked'));
     },
     stop() { stopNow?.(); },
   };

@@ -1,48 +1,54 @@
 import { describe, expect, it } from 'vitest';
 import { heuristicDiagnose } from '../src/brain/heuristic';
-import { brainContext, initialState, reducer } from '../src/flow/machine';
+import { eventsOf } from '../src/brain/records';
+import { experimentConditions } from '../src/brain/world';
+import { brainContext } from '../src/flow/derive';
+import { journeyReducer, startJourney } from '../src/flow/journey';
+import type { Action, Journey } from '../src/flow/journey';
 import { getPack } from '../src/packs';
 
 const pack = getPack('condensation');
-const ctx = { pack: pack.id, phase: 'explain' as const, previous: [], experiments: [] };
-const start = { type: 'START' as const, pack: pack.id, pseudonym: 'نجمة', grade: 4, classCode: null, quick: false };
-const ok = { s1: 1 as const, s2: 1 as const, s3: 1 as const };
+const start = (quick: boolean) => startJourney(pack, { id: 'local', alias: 'نجمة', grade: 4, lang: 'ar', quick, at: 1 });
+const run = (journey: Journey, ...actions: Action[]) => actions.reduce((s, a) => journeyReducer(pack, s, a), journey);
+const next = { type: 'continue', at: 2 } as const;
+const steps = [{ met: false, evidence: '' }, { met: false, evidence: '' }, { met: false, evidence: '' }];
 
 describe('lesson flow', () => {
-  it('walks welcome → pretest → lab with one greeting', () => {
-    let s = reducer(initialState, start);
-    expect(s.phase).toBe('pretest');
-    s = reducer(s, { type: 'PRE_DONE', result: { answers: [0, 0, 0, 0], score: 1, total: 4 } });
-    expect(s.phase).toBe('lab');
-    expect(s.cond).toEqual(pack.baseline);
-    expect(s.messages.filter((m) => m.who === 'noor')).toHaveLength(1);
+  it('walks from the greeting to the pretest to the phenomenon', () => {
+    const pre = run(start(false), next);
+    expect(pre.step).toBe('pretest');
+    const shown = run(pre, { type: 'quiz', answers: pack.preTest.map((q) => q.correct), at: 3 });
+    expect(shown.step).toBe('phenomenon');
+    expect(shown.cond).toEqual(pack.baseline);
+    expect(eventsOf(shown.record, 'quiz')[0].score).toBe(pack.preTest.length);
   });
-  it('quick mode (judges) skips both tests', () => {
-    let s = reducer(initialState, { ...start, quick: true, classCode: 'ABCD' });
-    expect(s.phase).toBe('lab');
-    expect(s.session?.classCode).toBe('ABCD');
-    s = reducer(s, { type: 'TO_POST' });
-    expect(s.phase).toBe('summary');
-  });
-  it('explain → teach → challenge → transfer → done', () => {
-    let s = reducer(reducer(initialState, start), { type: 'PRE_DONE', result: { answers: [], score: 0, total: 4 } });
-    s = reducer(s, { type: 'DIAGNOSED', text: 'x', diag: heuristicDiagnose(pack, 'المي بتنز من الكاسة', ctx) });
-    expect(s.lab).toBe('explain');
-    expect(s.diag?.child_chain.length).toBeGreaterThan(1);
-    s = reducer(s, { type: 'DIAGNOSED', text: 'y', diag: heuristicDiagnose(pack, 'في مي بالهوا بتبرد ع الكاسة وبتصير نقط', ctx) });
-    expect(s.lab).toBe('teach');
-    expect(brainContext(s).previous).toHaveLength(2);
-    s = reducer(s, { type: 'CHILD_SAID', text: 'أقل' });
-    s = reducer(s, { type: 'TAUGHT', text: 'أقل', result: { caught: true, noor: 'شكراً', rubric: ok, source: 'fallback' } });
-    expect(s.lab).toBe('challenge');
-    expect(s.teachings).toContain('أقل');
-    s = reducer(s, { type: 'CHALLENGED', result: { answer: 'جواب', missing: [1], ask: 'كيف؟', source: 'fallback' } });
-    expect(s.lab).toBe('challenge');
-    s = reducer(s, { type: 'CHALLENGED', result: { answer: 'جواب كامل', missing: [], ask: '', source: 'fallback' } });
-    expect(s.lab).toBe('transfer');
-    expect(s.session?.challenge?.resolved).toBe(true);
-    s = reducer(s, { type: 'TRANSFERRED', text: 'ندى', result: { rubric: ok, score: 3, noor: 'برافو', source: 'fallback' } });
-    expect(s.lab).toBe('done');
-    expect(s.session?.transfer?.score).toBe(3);
+
+  it.each([true, false])('tests a hypothesis, teaches Noor and completes a new-situation assessment (quick=%s)', (quick) => {
+    let journey = run(start(quick), next);
+    if (!quick) journey = run(journey, { type: 'quiz', answers: pack.preTest.map((q) => q.correct), at: 3 });
+    journey = run(journey, next);
+    expect(journey.step).toBe('explain');
+    const text = 'المي بتنز من الكاسة';
+    const diagnosis = heuristicDiagnose(pack, text, brainContext(pack, journey.record, 'ar'));
+    journey = run(journey, { type: 'explained', text, diagnosis, at: 4 }, next);
+    expect(brainContext(pack, journey.record, 'ar').previous).toHaveLength(1);
+    if (journey.step === 'prereq') journey = run(journey, { type: 'toTest' });
+    const test = pack.experiments[0];
+    journey = run(journey, { type: 'choose', experimentId: test.id, cond: experimentConditions(pack, test.id) });
+    expect(journey.step).toBe('predict');
+    expect(eventsOf(journey.record, 'observe')).toHaveLength(0);
+    journey = run(journey, { type: 'predict', outcome: test.choices[0], at: 5 }, next, { type: 'toTeach' });
+    expect(journey.step).toBe('teach');
+    journey = run(journey, { type: 'taught', text: 'جرّب بكاسة فاضية', result: { caught: true, steps, source: 'fallback' }, at: 6 }, next);
+    expect(journey.step).toBe('challenge');
+    journey = run(journey, next, { type: 'transferred', text: 'ندى', result: { steps, source: 'fallback' } },
+      { type: 'check', choice: pack.transfer.check.correct, at: 7 });
+    expect(eventsOf(journey.record, 'transfer')[0].choiceCorrect).toBe(true);
+    if (!quick) {
+      expect(journey.step).toBe('posttest');
+      journey = run(journey, { type: 'quiz', answers: pack.postTest.map((q) => q.correct), at: 8 });
+    }
+    expect(journey.step).toBe('summary');
+    expect(eventsOf(journey.record, 'quiz')).toHaveLength(quick ? 0 : 2);
   });
 });
