@@ -32,3 +32,11 @@ describe('quick-check decision', () => {
     expect(quickDecision(pack, [learner('x', null)]).headline).toBeNull();
   });
 });
+
+describe('planner weights shown to the teacher', () => {
+  it('are the ones the approved vision states: reach 40, coverage 25, disagreement 20, objective 10, time 5', async () => {
+    const { WEIGHTS } = await import('../src/brain/planner');
+    expect(WEIGHTS).toEqual({ reach: 0.4, coverage: 0.25, disagreement: 0.2, objective: 0.1, time: 0.05 });
+    expect(Object.values(WEIGHTS).reduce((a, b) => a + b, 0)).toBeCloseTo(1);
+  });
+});
