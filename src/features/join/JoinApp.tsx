@@ -160,7 +160,7 @@ function ClassTaskView({ view, send, busy }: { view: StudentRoomView; send: (op:
     const gap = gapTask(pack, record);
     return gap ? <>
       {title({ ar: 'وقفة قصيرة', en: 'A short stop' })}
-      <GapCard key={gap.kind + gap.prereq.id + (gap.kind === 'remedy' ? '' : gap.question.id)} task={gap} busy={busy}
+      <GapCard key={gap.kind + gap.prereq.id + (gap.kind === 'remedy' ? '' : gap.question.id)} task={gap} busy={busy} packId={pack.id}
         onAnswer={(answer) => { if (gap.kind !== 'remedy') void send({ type: 'prereq', prereqId: gap.prereq.id, questionId: gap.question.id, choice: answer }); }}
         onRemedyDone={() => void send({ type: 'remedy', prereqId: gap.prereq.id })} />
     </> : waiting;

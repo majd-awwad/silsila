@@ -151,13 +151,13 @@ export function Prereq({ pack, journey, dispatch }: LessonProps) {
   const line = task.kind === 'verify'
     ? { ar: 'قبل ما نجرّب، بدي أتأكّد من إشي صغير بنحتاجه.', en: 'Before we test, I want to check one small thing we will need.' }
     : task.kind === 'remedy'
-      ? { ar: 'يلا نقوّي هالإشي سوا، خطوة خطوة.', en: 'Let us strengthen this together, one step at a time.' }
+      ? { ar: 'خلّينا نقوّي أساس صغير سوا، خطوة خطوة.', en: 'Let us strengthen a small foundation together, one step at a time.' }
       : { ar: 'هلأ جرّب هالسؤال.', en: 'Now try this question.' };
   return (
     <div className="sl-center stack">
       <Title eyebrow={t({ ar: 'أساس صغير', en: 'A small foundation' })}>{t({ ar: 'وقفة قصيرة', en: 'A short stop' })}</Title>
       <NoorSays mood={task.kind === 'remedy' ? 'encouraging' : 'curious'} text={t(line)} />
-      <GapCard task={task}
+      <GapCard task={task} packId={pack.id}
         remedyContent={task.kind === 'remedy' && task.prereq.id === 'water_vapour'
           ? <WaterRemedy busy={false} onDone={(reflection) => dispatch({ type: 'remedyDone', at: Date.now(), reflection })} />
           : task.kind === 'remedy' && task.prereq.id === 'water_states'

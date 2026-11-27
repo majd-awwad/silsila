@@ -5,6 +5,8 @@ import type { Diagnosis, L } from '../../contracts';
 import type { GapTask } from '../../flow/gaps';
 import { useI18n } from '../../i18n';
 import { isJudgeMode } from '../../mode';
+import { PACKS } from '../../packs';
+import { foundationLink } from '../../packs/links';
 import { SourceBadge } from '../../ui/kit';
 import { Icon } from '../../ui/icons';
 import { Noor } from '../../ui/Noor';
@@ -220,8 +222,24 @@ export function SourceNote({ source, reason }: { source: 'ai' | 'fallback'; reas
 }
 
 /** One task of Learning Gap Recovery: a question, or the short remedy. No answer is ever marked here. */
-export function GapCard({ task, busy = false, onAnswer, onRemedyDone, remedyContent }: {
-  task: GapTask; busy?: boolean; onAnswer: (choice: number) => void; onRemedyDone: () => void; remedyContent?: ReactNode;
+/** Where a foundation comes from and where the learner returns to, from the prerequisite map between lessons. */
+function FoundationNote({ packId, prereqId }: { packId: string; prereqId: string }) {
+  const { t } = useI18n();
+  const link = foundationLink(packId, prereqId);
+  const here = PACKS[packId];
+  const from = link?.source ? PACKS[link.source] : null;
+  if (!link || !here) return null;
+  return <div className="help stack !gap-1" role="note">
+    <span>{from
+      ? t({ ar: `جزء قصير من درس «${from.title.ar}»: ${link.part.ar}.`, en: `A short part of the lesson “${from.title.en}”: ${link.part.en}.` })
+      : t({ ar: `نشاط قصير: ${link.part.ar}.`, en: `A short activity: ${link.part.en}.` })}</span>
+    <span>{t({ ar: `وبعدها بترجع لنفس المكان بدرس «${here.title.ar}»، وكل إشي عملته محفوظ.`, en: `Then you come back to the same place in “${here.title.en}”, and everything you did is kept.` })}</span>
+    {from && <a className="link" href={`#/learn/${from.id}`} target="_blank" rel="noreferrer">{t({ ar: 'افتح الدرس كامل (اختياري، بتبويب جديد)', en: 'Open the whole lesson (optional, new tab)' })}</a>}
+  </div>;
+}
+
+export function GapCard({ task, busy = false, onAnswer, onRemedyDone, remedyContent, packId }: {
+  task: GapTask; busy?: boolean; onAnswer: (choice: number) => void; onRemedyDone: () => void; remedyContent?: ReactNode; packId?: string;
 }) {
   const { t, n } = useI18n();
   const steps = task.kind === 'remedy' ? task.prereq.remedy.steps : [];
@@ -233,6 +251,7 @@ export function GapCard({ task, busy = false, onAnswer, onRemedyDone, remedyCont
       <section className="card stack" key="remedy">
         <span className="chip chip-brand self-start"><Icon name="link" size={14} />{t({ ar: 'تقوية أساس', en: 'Strengthen a foundation' })} · {n(remedy.minutes)} {t({ ar: 'دقايق', en: 'min' })}</span>
         <h2 className="subtitle">{t(remedy.title)}</h2>
+        {packId && <FoundationNote packId={packId} prereqId={task.prereq.id} />}
         {remedyContent ?? <>
           <p className="help">{n(card + 1)} / {n(steps.length)}</p>
           <p className="sl-bubble" aria-live="polite">{steps[card] && t(steps[card])}</p>

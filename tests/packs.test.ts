@@ -4,7 +4,7 @@ import { compare, conditionsFor, survivesAll, validConditions } from '../src/bra
 import { findHits, normaliseText } from '../src/brain/text';
 import { CHAIN_IDS } from '../src/contracts';
 import type { L } from '../src/contracts';
-import { PACK_LIST } from '../src/packs';
+import { PACK_LIST, getPack } from '../src/packs';
 import { RESOURCE_IDS } from '../src/packs/resources';
 import type { ConceptPack } from '../src/packs/types';
 
@@ -144,5 +144,17 @@ describe.each(PACK_LIST.map((p) => [p.id, p] as const))('pack %s', (_id, pack) =
       expect(a.steps.length, id).toBeGreaterThanOrEqual(2);
     }
     expect(pack.reference.sources.length).toBeGreaterThan(0);
+  });
+});
+
+describe('prerequisite map between lessons', () => {
+  it('only points at lessons and foundations that exist', async () => {
+    const { FOUNDATION_LINKS, PREREQUISITE_CHAINS } = await import('../src/packs/links');
+    for (const l of FOUNDATION_LINKS) {
+      expect(PACK_LIST.map((p) => p.id)).toContain(l.pack);
+      expect(getPack(l.pack).prerequisites.map((p) => p.id)).toContain(l.prereqId);
+      if (l.source) expect(PACK_LIST.map((p) => p.id)).toContain(l.source);
+    }
+    for (const c of PREREQUISITE_CHAINS) for (const s of c.steps) if (s.pack) expect(PACK_LIST.map((p) => p.id)).toContain(s.pack);
   });
 });
