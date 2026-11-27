@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { ReactNode } from 'react';
 import { areaPerimeter, RECTS } from '../packs/area-perimeter';
 import { buoyancy, CARGO, OBJECTS } from '../packs/buoyancy';
@@ -30,6 +31,7 @@ const ink = 'var(--stage-ink)';
 
 function WaterScene(props: SceneProps & { pack: ConceptPack }) {
   const { pack, cond, outcome } = props;
+  const fill = useId();
   const drying = pack.id === 'evaporation';
   const wide = drying && cond.area !== 'cup';
   const left = wide ? 80 : 120;
@@ -39,18 +41,31 @@ function WaterScene(props: SceneProps & { pack: ConceptPack }) {
   const count = outcome === 'fewer' ? 2 : outcome === 'blue' || outcome === 'drops' ? drops.length : 0;
   return (
     <Diagram pack={pack} props={props}>
+      <defs><linearGradient id={fill} x1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stopColor={!drying && cond.contents === 'blue' ? '#839fff' : '#a0e6f4'} />
+        <stop offset="100%" stopColor={!drying && cond.contents === 'blue' ? '#3554c7' : '#2689a9'} />
+      </linearGradient></defs>
+      <path d="M42 152h256" stroke={ink} strokeOpacity=".21" strokeWidth="1.5" />
+      {drying && cond.air === 'fan' && <path d="M34 61h32m-42 12h45m-31 12h28m-5-27 6 3-6 3m3 6 6 3-6 3" stroke={water} strokeOpacity=".78" fill="none" />}
       <ellipse cx="170" cy="154" rx={wide ? 112 : 78} ry="11" fill="currentColor" opacity=".12" />
       {drying && cond.napkin === 'yes' && <rect x="94" y="138" width="152" height="17" rx="4" fill={outcome === 'wet' ? water : ink} opacity=".65" />}
       {(drying || cond.contents !== 'empty') && (
         <path d={'M' + edge(level) + ' ' + level + ' H' + (340 - edge(level)) + ' L' + (327 - left) + ' 147 H' + (left + 13) + ' Z'}
-          fill={!drying && cond.contents === 'blue' ? '#618cff' : water} opacity=".65" />
+          fill={'url(#' + fill + ')'} opacity=".83" />
       )}
-      <path d={'M' + left + ' ' + top + ' H' + (340 - left) + ' L' + (327 - left) + ' 147 H' + (left + 13) + ' Z'}
+      <path d={'M' + left + ' ' + top + ' L' + (left + 13) + ' 147 Q170 156 ' + (327 - left) + ' 147 L' + (340 - left) + ' ' + top}
         fill="none" stroke={ink} strokeWidth="3" strokeLinejoin="round" />
+      <ellipse cx="170" cy={top} rx={170 - left} ry={wide ? 8 : 11} fill="none" stroke={ink} strokeOpacity=".8" strokeWidth="2" />
+      <path d={'M' + (left + 6) + ' ' + (top + 12) + 'L' + (left + 16) + ' 136'} stroke={ink} strokeOpacity=".28" strokeWidth="2" />
       {(cond.lid === 'on' || cond.lid === 'closed') && <rect x={left - 5} y={top - 7} width={350 - 2 * left} height="9" rx="3" fill={ink} />}
       {drying && cond.sun === 'yes' && <circle cx="274" cy="37" r="13" fill="#ffca76" />}
-      {!drying && cond.temp === 'cold' && <path d="M155 104h30m-15-15v30m-11-26 22 22m0-22-22 22" stroke={ink} opacity=".7" />}
-      {drops.slice(0, count).map(([x, y]) => <ellipse key={x} cx={x} cy={y} rx="3.8" ry="5.4" fill={outcome === 'blue' ? '#618cff' : water} />)}
+      {!drying && cond.temp === 'cold' && cond.contents !== 'empty' && <>
+        <rect x="145" y="66" width="23" height="19" rx="5" transform="rotate(-15 156 75)" fill="#d8f8ff" fillOpacity=".75" stroke="#effcff" />
+        <rect x="172" y="71" width="21" height="19" rx="5" transform="rotate(16 182 80)" fill="#d8f8ff" fillOpacity=".7" stroke="#effcff" />
+      </>}
+      {drops.slice(0, count).map(([x, y], i) => <g key={x} className="glass-drop" style={{ animationDelay: i * 55 + 'ms' }}>
+        <path d={'M' + x + ' ' + (y - 6) + 'q-8 10 0 11q8-1 0-11Z'} fill={outcome === 'blue' ? '#618cff' : '#a8e9f7'} stroke="#fff" strokeOpacity=".52" />
+      </g>)}
     </Diagram>
   );
 }
@@ -66,8 +81,10 @@ function ShadowScene(props: SceneProps) {
   const height = Math.min(displayed * 4, 142);
   return (
     <Diagram pack={shadows} props={props}>
-      <path d="M285 15v150M21 150h290" stroke={ink} opacity=".5" strokeWidth="3" />
-      <circle cx="46" cy="90" r="10" fill="#ffca76" />
+      <rect x="278" y="13" width="14" height="151" rx="4" fill={ink} fillOpacity=".2" stroke={ink} strokeOpacity=".6" />
+      <path d="M21 150h290" stroke={ink} opacity=".35" strokeWidth="2" />
+      <circle cx="46" cy="90" r="20" fill="#ffca76" opacity=".14" />
+      <path d="M27 79h18l12 8v6l-12 8H27Z" fill="#ffca76" stroke={ink} strokeOpacity=".6" />
       <rect x={objectX - 5} y={90 - objectHeight / 2} width="10" height={objectHeight} rx="2" fill={ink} />
       {outcome && <>
         <path d={'M46 90 285 ' + (90 - height / 2) + ' M46 90 285 ' + (90 + height / 2)} stroke="currentColor" strokeDasharray="4 5" />
@@ -156,7 +173,8 @@ function FloatScene(props: SceneProps) {
   return (
     <Diagram pack={buoyancy} props={props}>
       <path d="M68 78 H272 V154 H68 Z" fill={water} opacity=".23" />
-      <path d="M68 78 H272" stroke={water} strokeWidth="3" />
+      <path d="M68 78q12-5 24 0t24 0t24 0t24 0t24 0t24 0t24 0t24 0H272" stroke={water} strokeWidth="2.5" fill="none" />
+      <path d="M72 104h196m-196 26h196" stroke={water} strokeOpacity=".16" strokeWidth="1" />
       <path d="M68 60 V154 H272 V60" fill="none" stroke={ink} strokeWidth="3" />
       {item.boat
         ? <path d={'M138 ' + (y - 9) + ' H202 L190 ' + (y + 9) + ' H150 Z'} fill="currentColor" stroke={ink} strokeWidth="2" />

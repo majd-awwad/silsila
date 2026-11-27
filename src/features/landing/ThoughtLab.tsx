@@ -12,6 +12,9 @@ import { getPack } from '../../packs';
 import { href } from '../../router';
 import { ReasonChain } from '../../ui/Evidence';
 import { Icon } from '../../ui/icons';
+import { PhenomenonPreview } from '../../ui/PhenomenonPreview';
+import { ExperimentStage } from '../../ui/ExperimentStage';
+import { experimentConditions } from '../../brain/world';
 
 const THOUGHTS: L[] = [
   { ar: 'الكاسة بتعرق زيّنا', en: 'The glass is sweating like us' },
@@ -19,13 +22,27 @@ const THOUGHTS: L[] = [
   { ar: 'البرد نفسه بيصير مي', en: 'The coldness turns into water' },
 ];
 
+const featured = ['condensation', 'fractions', 'shadows'] as const;
+
 export function ThoughtLab() {
+  const { t } = useI18n();
+  const [id, setId] = useState<string>('condensation');
+  return <section className="stage lab-hero" aria-label={t({ ar: 'مختبر الاكتشاف', en: 'Discovery lab' })}>
+    <div className="thoughts" role="group" aria-label={t({ ar: 'الظاهرة', en: 'Phenomenon' })}>
+      {featured.map((key) => <button className="thought" type="button" key={key} aria-pressed={id === key} onClick={() => setId(key)}>{t(getPack(key).title)}</button>)}
+    </div>
+    <Lab key={id} id={id} />
+  </section>;
+}
+
+function Lab({ id }: { id: string }) {
   const { t, lang } = useI18n();
-  const pack = getPack('condensation');
+  const pack = getPack(id);
+  const samples = id === 'condensation' ? THOUGHTS : pack.samples.slice(1, 4);
   const [picked, setPicked] = useState(0);
   const [own, setOwn] = useState('');
   const [typed, setTyped] = useState('');
-  const text = typed || THOUGHTS[picked][lang];
+  const text = typed || samples[picked][lang];
   const d = useMemo(() => heuristicDiagnose(pack, text, { pack: pack.id, lang, previous: [] }), [pack, text, lang]);
   const next = useMemo(() => {
     if (!d.model) return null;
@@ -35,10 +52,11 @@ export function ThoughtLab() {
   }, [pack, d]);
 
   return (
-    <section className="stage lab-hero" aria-label={t({ ar: 'جرّب: حوّل فكرة لسلسلة', en: 'Try it: turn a thought into a chain' })}>
+    <>
       <h2 className="text-[18px]">{t(pack.question)}</h2>
+      <PhenomenonPreview pack={pack} compact />
       <div className="thoughts" role="group" aria-label={t({ ar: 'أفكار للتجربة', en: 'Example thoughts' })}>
-        {THOUGHTS.map((th, i) => (
+        {samples.map((th, i) => (
           <button key={i} type="button" className="thought" aria-pressed={!typed && i === picked} onClick={() => { setPicked(i); setTyped(''); setOwn(''); }}>{t(th)}</button>
         ))}
       </div>
@@ -49,11 +67,17 @@ export function ThoughtLab() {
       </form>
       <div className="lab-result" aria-live="polite" key={text + lang}>
         {d.chain.length > 0 && <div className="rise"><ReasonChain steps={d.chain} wrongStep={d.wrongStep} tone={d.status === 'correct' ? 'real' : 'idea'} /></div>}
-        {!d.chain.length && <p className="rise m-0 text-[17px]">{d.noor}</p>}
+        {!d.chain.length && <div className="stack !gap-2"><p>{d.noor}</p>
+          <button className="btn btn-secondary btn-sm self-start" onClick={() => {
+            setOwn(text + ' ');
+            document.getElementById('own-thought')?.focus();
+          }}>{t({ ar: 'وضّح فكرتك', en: 'Clarify your idea' })}</button>
+        </div>}
         {next ? (
           <div className="rise flex flex-col gap-1 rounded-2xl p-3 border border-[var(--stage-line)]" style={{ animationDelay: '.15s' }}>
             <span className="text-[13px] muted">{t({ ar: 'التجربة اللي اختارها المخطِّط لتختبر هالفكرة', en: 'The experiment the planner picked to test this idea' })}</span>
             <strong>{t(next.x.name)}</strong>
+            <ExperimentStage pack={pack} cond={experimentConditions(pack, next.x.id)} model={d.model} revealed={false} allow3d={false} quietSetup />
             <span>{t({ ar: 'الفكرة بتتوقّع:', en: 'This idea predicts:' })} <b className="text-idea">{t(pack.outcomes[next.predicts])}</b>. {t({ ar: 'وإنت شو بتتوقّع؟', en: 'What do you predict?' })}</span>
           </div>
         ) : d.status === 'correct' ? (
@@ -61,9 +85,9 @@ export function ThoughtLab() {
         ) : null}
       </div>
       <div className="row">
-        <a className="btn btn-secondary btn-sm" href={href('/learn/condensation?quick=1')}><Icon name="flask" size={16} />{t({ ar: 'جرّبها بالمختبر', en: 'Test it in the lab' })}</a>
+        <a className="btn btn-secondary btn-sm" href={href('/learn/' + id + '?quick=1')}><Icon name="flask" size={16} />{t({ ar: 'جرّبها بالمختبر', en: 'Test it in the lab' })}</a>
         <span className="text-[12px] muted">{t({ ar: 'هاد العرض بيشتغل على جهازك بالقواعد الاحتياطية.', en: 'This preview runs on your device with the offline rules.' })}</span>
       </div>
-    </section>
+    </>
   );
 }

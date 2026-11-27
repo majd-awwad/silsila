@@ -95,7 +95,7 @@ export function TestTab({ pack, view, records, goTab }: RoomTabProps) {
         </div>
         {!revealed && <Notice tone="warn">{t({ ar: 'النتيجة بتنكشف هون وعلى الشاشة بس بمرحلة «النتيجة».', en: 'The result is revealed here and on the projector only from the “Result” phase.' })}</Notice>}
         <ExperimentStage pack={pack} cond={experimentConditions(pack, experiment.id)} revealed={revealed}
-          model={focus ? modelForGroup(pack, focus.key, focus.ideas) : null}
+          model={focus ? result?.byGroup.find((group) => group.key === focus.key)?.model ?? modelForGroup(pack, focus.key, focus.ideas) : null}
           ideaLabel={focus ? t(groupTitle(pack, focus.key)) : undefined} />
       </section>
 

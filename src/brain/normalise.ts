@@ -9,6 +9,7 @@
 import type { BrainContext, ChildModel, Diagnosis, DiagnosisStatus, Lang, StepEvidence, TeachResult, TransferResult } from '../contracts';
 import { Diagnosis as DiagnosisSchema } from '../contracts';
 import type { ConceptPack } from '../packs/types';
+import { filtersDye } from '../packs/condensation';
 import { OFF_TOPIC, normaliseText, quoteIn } from './text';
 
 /** What the model (or the offline rules) is asked to extract. All of it is untrusted. */
@@ -88,9 +89,15 @@ export function normaliseDiagnosis(pack: ConceptPack, raw: RawDiagnosis, text: s
     };
   }
 
+  const refinedLeak = pack.id === 'condensation' && model?.sources.includes('inside_water') && filtersDye(text);
+  if (model && refinedLeak) model = { ...model, path: 'filters_dye' };
+
   const first = wrong[0] ? pack.ideas[wrong[0].id] : null;
   let caption = '';
   if (status === 'misconception' || status === 'multiple') caption = wrong.slice(0, 2).map((i) => pack.ideas[i.id].mirror[lang]).join(' ');
+  if (refinedLeak) caption = lang === 'ar'
+    ? 'حسب فكرتك، المي اللي جوّا بتمرّ من الزجاج، بس اللون بيضلّ جوّا.'
+    : 'In your idea, water passes through the glass while the dye stays inside.';
   else if (status === 'correct') caption = pack.ideas[correctId].mirror[lang];
   // In a partial explanation, show the learner's actual evidence before asking for the missing link.
   else if (status === 'partial') caption = [...new Set(steps.filter((s) => s.met).map((s) => s.evidence))].join(' · ');
@@ -114,23 +121,37 @@ export function normaliseDiagnosis(pack: ConceptPack, raw: RawDiagnosis, text: s
 
   // the learner's causal chain: theirs when grounded, otherwise the authored story of the identified idea
   const childSaysAnswer = pack.answerWords.test(text);
-  let chain = asList(raw.chain).map((s) => String(s ?? '').trim().slice(0, 80)).filter(Boolean).slice(0, 4);
+  let chain = asList(raw.chain).map((s) => String(s ?? '').trim().slice(0, 80)).filter((s) => s && quoteIn(text, s)).slice(0, 4);
   if (!childSaysAnswer && chain.some((s) => pack.answerWords.test(s))) chain = [];
   let wrongStep: number | null = Number.isInteger(raw.wrong_step) ? (raw.wrong_step as number) : null;
-  if (status === 'misconception' || status === 'multiple') {
+  if (refinedLeak) {
+    chain = lang === 'ar' ? ['المي الملوّنة جوّا الكاسة', 'المي بتمرّ من الزجاج', 'الزجاج بيخلّي اللون جوّا', 'الفكرة بتتوقّع نقط شفّافة برّا']
+      : ['Coloured water is inside the glass', 'Water passes through the glass', 'The glass holds the dye inside', 'The idea predicts clear drops outside'];
+    wrongStep = 1;
+  } else if (status === 'misconception' || status === 'multiple') {
     if (chain.length < 2 && first) {
       chain = first.story.map((s) => s[lang]);
       wrongStep = first.wrongStep;
     }
     if (wrongStep === null && first) wrongStep = Math.min(first.wrongStep ?? 0, chain.length - 1);
   } else if (status === 'correct' || status === 'partial') {
-    if (chain.length < 2) chain = steps.filter((s) => s.met).map((s) => s.evidence).slice(0, 4);
+    if (status === 'correct') chain = pack.steps.map((step) => step.text[lang]);
+    else if (chain.length < 2) chain = steps.filter((s) => s.met).map((s) => s.evidence).slice(0, 4);
     wrongStep = null;
   } else {
     chain = [];
     wrongStep = null;
   }
-  if (wrongStep !== null && (wrongStep < 0 || wrongStep >= chain.length)) wrongStep = null;
+  const marked = wrongStep === null ? undefined : chain[wrongStep];
+  const distinct = new Set<string>();
+  chain = chain.filter((link) => {
+    const key = normaliseText(link).replace(/[^\p{L}\p{N} ]/gu, '').trim();
+    if (distinct.has(key)) return false;
+    distinct.add(key);
+    return true;
+  });
+  wrongStep = marked === undefined ? null : chain.indexOf(marked);
+  if (wrongStep === -1) wrongStep = null;
 
   const words = text.trim().split(/\s+/).length;
   const evidence: Diagnosis['evidence'] = !ideas.length && !met ? 'none' : words < 3 || (!wrong.length && met === 1) ? 'weak' : 'clear';

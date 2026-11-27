@@ -1,9 +1,10 @@
 /** Learner-facing building blocks shared by the individual lesson and the classroom phone view. */
-import { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useRef } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import type { Diagnosis, L } from '../../contracts';
 import type { GapTask } from '../../flow/gaps';
 import { useI18n } from '../../i18n';
+import { isJudgeMode } from '../../mode';
 import { SourceBadge } from '../../ui/kit';
 import { Icon } from '../../ui/icons';
 import { Noor } from '../../ui/Noor';
@@ -11,6 +12,7 @@ import type { NoorMood } from '../../ui/Noor';
 import { useDictation } from '../../voice/useVoice';
 import type { NoorVoice } from '../../voice/useVoice';
 import './student.css';
+import { SoloDraftContext, textDraft, useLessonDraft } from './draft';
 
 export const VoiceContext = createContext<NoorVoice | null>(null);
 
@@ -110,11 +112,11 @@ export function ChainProgress({ steps, current }: { steps: L[]; current: number 
 }
 
 /** Pick one answer, then confirm it. Nothing says whether it is right. */
-export function LockChoice({ label, options, submit, onSubmit, busy = false, lock = false, initial = null }: {
+export function LockChoice({ label, options, submit, onSubmit, busy = false, lock = false, initial = null, draftField = 'choice' }: {
   label: string; options: { id: string; label: string }[]; submit: string; onSubmit: (id: string) => void;
-  busy?: boolean; lock?: boolean; initial?: string | null;
+  busy?: boolean; lock?: boolean; initial?: string | null; draftField?: string;
 }) {
-  const [picked, setPicked] = useState<string | null>(initial);
+  const [picked, setPicked] = useLessonDraft<string | null>(draftField, initial, (value): value is string | null => value === null || textDraft(value));
   const valid = options.some((o) => o.id === picked);
   return (
     <div className="stack !gap-3">
@@ -148,15 +150,16 @@ export function SpeakBox({ label, placeholder, submit, busy, onSubmit, samples =
   const { t, lang, n } = useI18n();
   const voice = useContext(VoiceContext);
   const dictation = useDictation(lang);
-  const [text, setText] = useState('');
+  const [text, setText] = useLessonDraft('explanation', '', textDraft);
   const id = useId();
+  const scope = useContext(SoloDraftContext);
   const send = async (e?: FormEvent) => {
     e?.preventDefault();
     const said = text.trim();
     if (!said || busy) return;
     dictation.stop();
     voice?.stop();
-    if ((await onSubmit(said)) === true) setText('');
+    if ((await onSubmit(said)) === true && !scope) setText('');
   };
   const mic = () => {
     if (dictation.listening) { dictation.stop(); return; }
@@ -169,10 +172,10 @@ export function SpeakBox({ label, placeholder, submit, busy, onSubmit, samples =
       <label className="label" htmlFor={id}>{label}</label>
       {samples.length > 0 && (
         <div className="sl-samples" role="group" aria-label={t({ ar: 'جمل للتجربة (وضع الحكّام)', en: 'Sample sentences (judge mode)' })}>
-          {samples.map((s) => <button key={s} type="button" className="btn btn-secondary btn-sm" onClick={() => setText(s)}>{s}</button>)}
+          {samples.map((s) => <button key={s} type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setText(s)}>{s}</button>)}
         </div>
       )}
-      <textarea id={id} className="textarea" dir="auto" rows={3} maxLength={600} value={text} placeholder={placeholder}
+      <textarea id={id} className="textarea" dir="auto" rows={3} maxLength={600} value={text} placeholder={placeholder} readOnly={busy}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
       <div className="sl-speak-actions">
@@ -209,26 +212,37 @@ export function SpeakBox({ label, placeholder, submit, busy, onSubmit, samples =
 
 /** Which engine read the words. Honest, small, out of the way. */
 export function SourceNote({ source, reason }: { source: 'ai' | 'fallback'; reason?: Diagnosis['fallbackReason'] }) {
-  return <div className="sl-source"><SourceBadge source={source} reason={reason} /></div>;
+  const { t } = useI18n();
+  if (isJudgeMode()) return <div className="sl-source"><SourceBadge source={source} reason={reason} /></div>;
+  return source === 'fallback' ? <p className="help" role="status">
+    {t({ ar: 'نور عم تستخدم الفهم المتاح على هالجهاز. إذا ما فهمتك منيح، بتقدر توضّح فكرتك.', en: 'Noor is using what this device can understand. You can clarify if she missed something.' })}
+  </p> : null;
 }
 
 /** One task of Learning Gap Recovery: a question, or the short remedy. No answer is ever marked here. */
-export function GapCard({ task, busy = false, onAnswer, onRemedyDone }: {
-  task: GapTask; busy?: boolean; onAnswer: (choice: number) => void; onRemedyDone: () => void;
+export function GapCard({ task, busy = false, onAnswer, onRemedyDone, remedyContent }: {
+  task: GapTask; busy?: boolean; onAnswer: (choice: number) => void; onRemedyDone: () => void; remedyContent?: ReactNode;
 }) {
   const { t, n } = useI18n();
+  const steps = task.kind === 'remedy' ? task.prereq.remedy.steps : [];
+  const [card, setCard] = useLessonDraft('remedy:' + task.prereq.id, 0,
+    (value): value is number => Number.isInteger(value) && Number(value) >= 0 && Number(value) < steps.length);
   if (task.kind === 'remedy') {
     const { remedy } = task.prereq;
     return (
       <section className="card stack" key="remedy">
         <span className="chip chip-brand self-start"><Icon name="link" size={14} />{t({ ar: 'تقوية أساس', en: 'Strengthen a foundation' })} · {n(remedy.minutes)} {t({ ar: 'دقايق', en: 'min' })}</span>
         <h2 className="subtitle">{t(remedy.title)}</h2>
-        <ol className="chain">
-          {remedy.steps.map((s, i) => (
-            <li key={i} className="is-real"><span className="chain-dot" aria-hidden="true">{n(i + 1)}</span><span className="chain-text">{t(s)}</span></li>
-          ))}
-        </ol>
-        <button type="button" className="btn btn-primary btn-lg" disabled={busy} onClick={onRemedyDone}>{t({ ar: 'خلّصت، اسألني', en: 'Done, ask me' })}</button>
+        {remedyContent ?? <>
+          <p className="help">{n(card + 1)} / {n(steps.length)}</p>
+          <p className="sl-bubble" aria-live="polite">{steps[card] && t(steps[card])}</p>
+          <div className="row">
+            {card > 0 && <button className="btn btn-secondary" type="button" onClick={() => setCard(card - 1)}>{t({ ar: 'السابق', en: 'Previous' })}</button>}
+            {card < steps.length - 1
+              ? <button className="btn btn-primary" type="button" onClick={() => setCard(card + 1)}>{t({ ar: 'الخطوة الجاية', en: 'Next step' })}</button>
+              : <button type="button" className="btn btn-primary" disabled={busy} onClick={onRemedyDone}>{t({ ar: 'خلّصت، اسألني', en: 'Done, ask me' })}</button>}
+          </div>
+        </>}
       </section>
     );
   }
@@ -240,7 +254,7 @@ export function GapCard({ task, busy = false, onAnswer, onRemedyDone }: {
           : t({ ar: 'سؤال كمان للتأكّد', en: 'One more to check' })}
       </span>
       <h2 className="subtitle">{t(task.question.q)}</h2>
-      <LockChoice key={task.question.id} label={t(task.question.q)} busy={busy}
+      <LockChoice key={task.question.id} draftField={task.question.id} label={t(task.question.q)} busy={busy}
         options={task.question.options.map((o, i) => ({ id: String(i), label: t(o) }))}
         submit={t({ ar: 'هاد جوابي', en: 'This is my answer' })} onSubmit={(id) => onAnswer(Number(id))} />
     </section>

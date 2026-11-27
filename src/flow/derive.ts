@@ -61,7 +61,7 @@ export function stuckCount(pack: ConceptPack, r: LearnerRecord): number {
   const tried = new Set<string>();
   for (const e of r.events) {
     if (e.type === 'explain' && e.diagnosis.model) {
-      const key = groupKey(pack, e.diagnosis);
+      const key = groupKey(pack, e.diagnosis) + ':' + e.diagnosis.model.path;
       if (key !== idea) { idea = key; tried.clear(); }
     } else if (e.type === 'observe' && observationContradicts(pack, e)) tried.add(conditionsKey(e.cond));
   }

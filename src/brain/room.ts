@@ -14,7 +14,8 @@ import type {
 import { PHASES } from '../contracts';
 import type { ConceptPack } from '../packs/types';
 import { gapsOf } from './evidence';
-import { addEvent, eventsOf, groupKey, initialDiagnosis, lastEvent, newRecord, revisedDiagnosis } from './records';
+import { plan, rejectReasons } from './planner';
+import { addEvent, eventsOf, groupKey, hypothesesOf, initialDiagnosis, lastEvent, newRecord, revisedDiagnosis } from './records';
 import { compare, experimentById, experimentConditions } from './world';
 
 export interface RoomData { meta: RoomMeta; participants: RoomParticipant[] }
@@ -22,6 +23,8 @@ export type RoomResult = { ok: true; data: RoomData } | { ok: false; error: Room
 
 export const ROOM_TTL_MS = 6 * 60 * 60 * 1000;
 export const MAX_PARTICIPANTS = 60;
+export const PRESENCE_PULSE_MS = 15_000;
+export const PRESENCE_WINDOW_MS = 35_000;
 const MAX_EXPLAINS = 6;
 
 export const phaseIndex = (p: Phase) => PHASES.indexOf(p);
@@ -77,6 +80,7 @@ export function checkStudentOp(pack: ConceptPack, data: RoomData, participantId:
   switch (op.type) {
     case 'explain': {
       if (!EXPLAIN_PHASES.includes(meta.phase)) return 'wrong_phase';
+      if (eventsOf(r, 'explain').some((event) => event.phase !== 'revise' && event.text.trim() === op.text.trim())) return 'locked';
       const d = initialDiagnosis(r);
       // once the map is on screen, only learners who are not yet understood may still change their start
       if (meta.phase !== 'explain' && d && d.status !== 'insufficient') return 'locked';
@@ -89,9 +93,11 @@ export function checkStudentOp(pack: ConceptPack, data: RoomData, participantId:
       return eventsOf(r, 'predict').some((e) => e.experimentId === x.id) ? 'locked' : null;
     case 'observe':
       return (meta.phase === 'observe' || meta.phase === 'discuss') && lastEvent(r, 'observe') ? null : 'wrong_phase';
-    case 'revise':
+    case 'revise': {
       if (meta.phase !== 'revise') return 'wrong_phase';
-      return eventsOf(r, 'explain').filter((e) => e.phase === 'revise').length >= 3 ? 'locked' : null;
+      const revisions = eventsOf(r, 'explain').filter((event) => event.phase === 'revise');
+      return revisions.length >= 3 || revisions.some((event) => event.text.trim() === op.text.trim()) ? 'locked' : null;
+    }
     case 'transfer':
       if (meta.phase !== 'transfer') return 'wrong_phase';
       return eventsOf(r, 'transfer').length ? 'locked' : null;
@@ -182,8 +188,11 @@ function recordObservation(pack: ConceptPack, data: RoomData, experimentId: stri
 export function teacherOp(pack: ConceptPack, data: RoomData, op: TeacherOp, now = Date.now()): RoomResult {
   const { meta } = data;
   if (meta.closed) return fail('room_closed');
+  if ('expectedPhase' in op && op.expectedPhase !== undefined && op.expectedPhase !== meta.phase) return fail('wrong_phase');
   switch (op.type) {
     case 'phase': {
+      if (op.expectedExperiment !== undefined && op.expectedExperiment !== meta.experimentId) return fail('wrong_phase');
+      if (op.expectedPhase && phaseIndex(op.phase) !== phaseIndex(meta.phase) + 1 && !(meta.phase === 'approve' && op.phase === 'revise' && !meta.experimentId)) return fail('wrong_phase');
       // the shared experiment must be approved by the teacher before learners are asked to predict
       if (atLeast(op.phase, 'predict') && !atLeast(op.phase, 'revise') && !meta.experimentId) return fail('wrong_phase');
       let next: RoomData = { ...data, meta: { ...meta, phase: op.phase, phaseAt: now } };
@@ -191,12 +200,20 @@ export function teacherOp(pack: ConceptPack, data: RoomData, op: TeacherOp, now 
       return ok(next);
     }
     case 'choose': {
-      if (!experimentById(pack, op.experimentId)) return fail('bad_request');
+      const experiment = experimentById(pack, op.experimentId);
+      if (!experiment) return fail('bad_request');
+      if (meta.settings.mode && rejectReasons(experiment, { ...meta.settings, exclude: [] }).length) return fail('bad_request');
+      if (op.expectedPhase && !['recommend', 'approve'].includes(meta.phase)) return fail('wrong_phase');
+      const recommended = op.source === 'recommended' && plan(pack, hypothesesOf(pack, data.participants.map((person) => person.record)), {
+        ...meta.settings, exclude: [...meta.rejected, ...meta.done],
+      }).recommended?.id === op.experimentId;
+      if (op.source === 'recommended' && !recommended) return fail('wrong_phase');
       const phase = meta.experimentId !== op.experimentId && atLeast(meta.phase, 'predict') ? 'approve' : meta.phase;
-      return ok({ ...data, meta: { ...meta, phase, experimentId: op.experimentId, rejected: meta.rejected.filter((x) => x !== op.experimentId), phaseAt: now } });
+      return ok({ ...data, meta: { ...meta, phase, experimentId: op.experimentId, approvalSource: recommended ? 'recommended' : 'manual', rejected: meta.rejected.filter((x) => x !== op.experimentId), phaseAt: now } });
     }
     case 'reject':
       if (!experimentById(pack, op.experimentId)) return fail('bad_request');
+      if (op.experimentId === meta.experimentId && atLeast(meta.phase, 'predict')) return fail('wrong_phase');
       return ok({ ...data, meta: { ...meta, rejected: [...new Set([...meta.rejected, op.experimentId])], experimentId: meta.experimentId === op.experimentId ? null : meta.experimentId, phaseAt: now } });
     case 'remove':
       return ok({ ...data, participants: data.participants.filter((p) => p.id !== op.participantId) });
@@ -260,7 +277,7 @@ export function aggregates(pack: ConceptPack, data: RoomData): Aggregates {
       const model = rec ? initialDiagnosis(rec)?.model : null;
       if (!model) return [];
       const c = compare(pack, model, cond);
-      return [{ key: g.key, ideas: g.ideas, outcome: c.kid, contradicted: c.contradicted, count: g.count }];
+      return [{ key: g.key, ideas: g.ideas, outcome: c.kid, contradicted: c.contradicted, count: g.count, model }];
     });
     result = { outcome: pack.realOutcome(cond), byGroup };
   }
@@ -270,7 +287,7 @@ export function aggregates(pack: ConceptPack, data: RoomData): Aggregates {
     predicted: [...predictions.values()].reduce((a, b) => a + b, 0),
     revised: count((r) => !!revisedDiagnosis(r)),
     transferred: count((r) => eventsOf(r, 'transfer').length > 0),
-    groups: atLeast(meta.phase, 'map') ? groupsOf(pack, records, 'initial', meta.phase === 'discuss') : null,
+    groups: atLeast(meta.phase, 'map') ? groupsOf(pack, records, 'initial', false) : null,
     predictions: x && atLeast(meta.phase, 'reveal') ? [...predictions.entries()].map(([outcome, n]) => ({ outcome, count: n })) : null,
     result,
     revisedGroups: atLeast(meta.phase, 'revise') ? groupsOf(pack, records, 'revised', false) : null,
@@ -279,8 +296,8 @@ export function aggregates(pack: ConceptPack, data: RoomData): Aggregates {
 }
 
 /** The experiment id stays hidden from learners and the screen until predictions open. */
-export const publicMeta = (meta: RoomMeta): RoomMeta =>
-  atLeast(meta.phase, 'predict') ? { ...meta, rejected: [] } : { ...meta, rejected: [], experimentId: null };
+export const publicMeta = ({ approvalSource: _approvalSource, settings: { accessibility: _accessibility, ...settings }, ...meta }: RoomMeta): RoomMeta =>
+  atLeast(meta.phase, 'predict') ? { ...meta, settings, rejected: [] } : { ...meta, settings, rejected: [], experimentId: null };
 
 export function versionOf(data: RoomData): string {
   // Include event contents so same-length edits and same-tick classroom actions invalidate cached views.

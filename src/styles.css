@@ -287,3 +287,13 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .noor-float { animation: noor-float 4.5s ease-in-out infinite; }
 @keyframes noor-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 .noor-discovering .noor-antenna, .noor-celebrating .noor-antenna { animation: noor-wave 1s ease-in-out infinite; }
+/* The phenomenon is its own exhibit. New experiments still hide their results until prediction. */
+.phenomenon { margin: 0; width: 100%; min-width: 0; padding: 12px; border-radius: var(--radius-l); }
+.phenomenon figcaption { font-weight: 700; padding-inline: 10px; }
+.phenomenon-scenes { display: flex; gap: 6px; align-items: center; }
+.phenomenon-scenes > div { flex: 1 1 0; min-width: 0; }
+.phenomenon-scenes svg { display: block; aspect-ratio: 340 / 180; }
+.phenomenon-compact { padding: 4px; }
+.glass-drop { animation: form-drop .36s both var(--ease); transform-box: fill-box; transform-origin: center; }
+@keyframes form-drop { from { opacity: 0; transform: scale(.62); } to { opacity: 1; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .glass-drop { animation: none; } }

@@ -11,7 +11,7 @@ import { LIMITATIONS, groupTitle } from '../logic/labels';
 import { TransformFlow } from '../viz/TransformFlow';
 import type { RoomTabProps } from './types';
 
-const FOLLOW_UP: Change[] = ['persisting', 'new_idea', 'unresolved', 'waiting'];
+const FOLLOW_UP: Change[] = ['persisting', 'new_idea', 'partial', 'unresolved', 'waiting'];
 
 export function ChangeTab({ pack, records, goTab }: RoomTabProps) {
   const { t, n } = useI18n();
@@ -35,6 +35,12 @@ export function ChangeTab({ pack, records, goTab }: RoomTabProps) {
       <SectionTitle hint={t({ ar: 'من أول شرح لكل متعلّم لشرحه بعد التجربة والنقاش.', en: 'From each learner’s first explanation to the one after the experiment and discussion.' })}>
         {t({ ar: 'قبل وبعد', en: 'Before and after' })}
       </SectionTitle>
+      <dl className="tc-strip">
+        <div><dt>{t({ ar: 'مشاركون', en: 'Participants' })}</dt><dd>{n(records.length)}</dd></div>
+        <div><dt>{t({ ar: 'أرسلوا شرحاً أولياً', en: 'Initial explanations' })}</dt><dd>{n(totals.total)}</dd></div>
+        <div><dt>{t({ ar: 'أرسلوا الشرحين', en: 'Matched pairs' })}</dt><dd>{n(totals.revised)}</dd></div>
+        <div><dt>{t({ ar: 'غاب شرح أو أكثر', en: 'Missing one or both explanations' })}</dt><dd>{n(records.length - totals.revised)}</dd></div>
+      </dl>
 
       {totals.revised === 0 ? (
         <EmptyState>
@@ -44,10 +50,10 @@ export function ChangeTab({ pack, records, goTab }: RoomTabProps) {
       ) : (
         <>
           <dl className="tc-strip">
-            {(['reached', 'kept', 'partial', 'persisting', 'new_idea', 'unresolved', 'waiting'] as Change[]).filter((c) => totals[c] > 0 || c === 'reached' || c === 'persisting').map((c) => (
+            {(['reached', 'kept', 'partial', 'persisting', 'new_idea', 'unresolved'] as Change[]).filter((c) => totals[c] > 0 || c === 'reached' || c === 'persisting').map((c) => (
               <div key={c}>
                 <dt>{t(CHANGE_LABEL[c])}</dt>
-                <dd>{n(totals[c])} <small>{t({ ar: `من ${n(totals.total)}`, en: `of ${totals.total}` })}</small></dd>
+                <dd>{n(totals[c])} <small>{t({ ar: `من ${n(totals.revised)}`, en: `of ${totals.revised}` })}</small></dd>
               </div>
             ))}
           </dl>
@@ -85,6 +91,8 @@ export function ChangeTab({ pack, records, goTab }: RoomTabProps) {
           </dl>
         ) : <p className="muted">{t({ ar: 'لسا ما حدا جاوب على الموقف الجديد.', en: 'Nobody has answered the new situation yet.' })}</p>}
       </section>
+
+      <div><button type="button" className="btn btn-secondary" onClick={() => goTab('gaps')}>{t({ ar: 'راجع أدلة المتطلبات السابقة', en: 'Review prerequisite evidence' })}</button></div>
 
       <Notice tone="warn">
         <ul className="tc-bullets">{LIMITATIONS.slice(0, 3).map((l, i) => <li key={i}>{t(l)}</li>)}</ul>

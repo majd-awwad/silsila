@@ -163,9 +163,9 @@ export function fallbackActivity(pack: ConceptPack, req: ActivityRequest): Activ
   const gap = focus.kind === 'gap' ? pack.prerequisites.find((p) => p.id === focus.id)! : null;
   const template = pack.activities[focus.kind === 'enrich' ? '_enrich' : focus.id && pack.activities[focus.id] ? focus.id : '_default'];
 
-  const available = (m: ResourceId) => !req.resources.length || req.resources.includes(m);
+  const available = (m: ResourceId) => req.resources.includes(m);
   const experiments = pack.experiments
-    .filter((x) => x.materials.every(available) && x.minGrade <= req.grade)
+    .filter((x) => x.materials.every(available) && x.minGrade <= req.grade && x.minutes <= req.minutes)
     .filter((x) => !idea || pack.kidOutcome(idea.model, { ...pack.baseline, ...x.change }) !== pack.realOutcome({ ...pack.baseline, ...x.change }));
   const pick = experiments.slice(0, 3);
   const questions = (pick.length ? pick : pack.experiments.slice(0, 3)).map((x) => x.question[lang]);
@@ -218,7 +218,7 @@ export function fallbackActivity(pack: ConceptPack, req: ActivityRequest): Activ
     title, type: gap ? 'experiment' : req.type,
     why,
     target: gap ? gap.why[lang] : idea ? idea.assumption[lang] : template.goal[lang],
-    objective: pack.objectives[0].text[lang],
+    objective: (pack.objectives.find((goal) => goal.id === req.objective) ?? pack.objectives[0]).text[lang],
     grouping, materials,
     minutes: req.minutes,
     steps: scaleMinutes(steps, req.minutes),

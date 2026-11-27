@@ -10,6 +10,7 @@ import { Icon } from '../../../ui/icons';
 import type { IconName } from '../../../ui/icons';
 import { ROOM_ERROR } from '../logic/labels';
 import '../teacher.css';
+import '../../classroom.css';
 
 export type TeacherSection = 'home' | 'library' | 'new' | 'learners' | 'studio' | 'room';
 
@@ -111,12 +112,13 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
       setState('failed');
     }
   };
-  return (
+  return <>
     <button type="button" className="btn btn-secondary btn-sm" onClick={copy} aria-live="polite">
       <Icon name={state === 'done' ? 'check' : 'link'} size={16} />
       {state === 'done' ? t({ ar: 'انتسخ', en: 'Copied' }) : state === 'failed' ? t({ ar: 'انسخوه يدوياً', en: 'Copy it by hand' }) : label}
     </button>
-  );
+    {state === 'failed' && <input className="input mt-2" readOnly dir="ltr" value={value} aria-label={label} ref={(node) => { if (node) { node.focus(); node.select(); } }} />}
+  </>;
 }
 
 export function Meter({ label, value, max }: { label: string; value: number; max: number }) {

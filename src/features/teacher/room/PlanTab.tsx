@@ -12,7 +12,7 @@ import { ideaName } from '../logic/labels';
 import { explainChoice, modeAdvice, planFor, predictionRows, rejectedRows, scoreParts, sequenceNames } from '../logic/planView';
 import type { RoomTabProps } from './types';
 
-function Facts({ pack, ranked, result }: RoomTabProps & { ranked: RankedExperiment; result: PlanResult }) {
+function Facts({ pack, view, ranked, result }: RoomTabProps & { ranked: RankedExperiment; result: PlanResult }) {
   const { t, n, lang } = useI18n();
   const x = pack.experiments.find((e) => e.id === ranked.id)!;
   const rows = predictionRows(pack, ranked, lang);
@@ -55,11 +55,11 @@ function Facts({ pack, ranked, result }: RoomTabProps & { ranked: RankedExperime
           </table>
         </div>
       )}
-      <div className="row !gap-1.5">
+      {view.meta.settings.mode === 'digital' ? <div className="row !gap-1.5"><span className="chip chip-brand">{t({ ar: 'محاكاة رقمية دون مواد مادية', en: 'Digital simulation without physical materials' })}</span></div> : <div className="row !gap-1.5">
         <span className="chip"><Icon name="clock" size={13} />{n(x.minutes)} {t({ ar: 'دقيقة', en: 'min' })}</span>
         {x.materials.map((m) => <span key={m} className="chip">{t(RESOURCES[m])}</span>)}
         <span className={`chip !whitespace-normal ${x.safety.adult ? 'chip-probe' : ''}`}><Icon name="shield" size={13} />{x.safety.adult ? `${t({ ar: 'بإشراف بالغ', en: 'Adult needed' })}: ` : ''}{t(x.safety.note)}</span>
-      </div>
+      </div>}
       <details>
         <summary className="link">{t({ ar: 'كيف انحسب الترتيب', en: 'How the ranking was computed' })}</summary>
         <div className="stack !gap-2 mt-2">
@@ -98,14 +98,14 @@ export function PlanTab(props: RoomTabProps) {
   const alternatives = result.ranked.filter((r) => r.id !== meta.experimentId && r.id !== recommended?.id);
   const advice = modeAdvice(pack, result, records, lang);
   const ruledOut = rejectedRows(pack, meta, result, lang);
-  const started = meta.phase !== 'lobby' && meta.phase !== 'explain' && meta.phase !== 'map' && meta.phase !== 'recommend' && meta.phase !== 'approve';
+  const canDecide = !readOnly && meta.phase === 'approve';
 
-  const decide = (id: string, primary: boolean) => !readOnly && (
+  const decide = (id: string, primary: boolean) => canDecide && (
     <div className="row no-print">
-      <button type="button" className={`btn ${primary ? 'btn-primary btn-lg' : 'btn-secondary btn-sm'}`} disabled={busy} onClick={() => void act({ type: 'choose', experimentId: id })}>
-        <Icon name="check" size={17} />{primary ? t({ ar: 'وافقوا على هالتجربة', en: 'Approve this experiment' }) : t({ ar: 'اختاروا هاي', en: 'Choose this one' })}
+      <button type="button" className={`btn ${primary ? 'btn-primary btn-lg' : 'btn-secondary btn-sm'}`} disabled={busy} onClick={() => void act({ type: 'choose', experimentId: id, source: id === recommended?.id ? 'recommended' : 'manual', expectedPhase: meta.phase })}>
+        <Icon name="check" size={17} />{id === recommended?.id ? t({ ar: 'اعتمد التجربة المقترحة', en: 'Approve recommended experiment' }) : t({ ar: 'اعتمدها باختيار يدوي', en: 'Approve as manual selection' })}
       </button>
-      <button type="button" className={`btn btn-ghost ${primary ? '' : 'btn-sm'}`} disabled={busy} onClick={() => void act({ type: 'reject', experimentId: id })}>
+      <button type="button" className={`btn btn-ghost ${primary ? '' : 'btn-sm'}`} disabled={busy} onClick={() => void act({ type: 'reject', experimentId: id, expectedPhase: meta.phase })}>
         <Icon name="cross" size={16} />{t({ ar: 'ارفضوها', en: 'Reject' })}
       </button>
     </div>
@@ -117,29 +117,28 @@ export function PlanTab(props: RoomTabProps) {
         {t({ ar: 'مخطّط التجربة', en: 'Experiment planner' })}
       </SectionTitle>
 
-      {started && <Notice tone="warn">{t({ ar: 'مرحلة التوقّع بلّشت. إذا غيّرتوا التجربة، رجّعوا الصف للتوقّع عشان يتوقّعوا للتجربة الجديدة.', en: 'Predictions have started. If you change the experiment, take the class back to predictions for the new one.' })}</Notice>}
-
       {approved && (
         <section className="tc-rec is-approved stack">
           <div className="row">
             <span className="chip chip-real"><Icon name="check" size={13} />{t({ ar: 'التجربة المعتمدة', en: 'Approved experiment' })}</span>
+            {meta.approvalSource && <span className="chip">{meta.approvalSource === 'manual' ? t({ ar: 'اختيار يدوي', en: 'Manual selection' }) : t({ ar: 'من توصية المخطّط', en: 'From planner recommendation' })}</span>}
             {meta.done.includes(approved.id) && <span className="chip">{t({ ar: 'انعملت', en: 'Already run' })}</span>}
             <h3 className="subtitle flex-1">{name(approved.id)}</h3>
-            {!readOnly && !started && (
-              <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void act({ type: 'reject', experimentId: approved.id })}>
+            {canDecide && (
+              <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void act({ type: 'reject', experimentId: approved.id, expectedPhase: meta.phase })}>
                 {t({ ar: 'إلغاء الموافقة ورفضها', en: 'Withdraw and reject' })}
               </button>
             )}
           </div>
           <Facts {...props} ranked={approved} result={withinLimits} />
-          {!started && <div><button type="button" className="btn btn-secondary btn-sm" onClick={() => goTab('test')}>{t({ ar: 'معاينة مشهد التجربة', en: 'Preview the experiment stage' })}</button></div>}
+          {canDecide && <div><button type="button" className="btn btn-secondary btn-sm" onClick={() => goTab('test')}>{t({ ar: 'معاينة مشهد التجربة', en: 'Preview the experiment stage' })}</button></div>}
         </section>
       )}
 
-      {advice && (
+      {advice && !approved && (
         <section className="card stack !gap-3">
           <div className="row">
-            <span className="chip chip-idea"><Icon name={result.mode === 'enrich' ? 'spark' : 'question'} size={13} />{t({ ar: 'ما في اقتراح تجربة', en: 'No experiment suggested' })}</span>
+            <span className="chip chip-idea"><Icon name={result.mode === 'enrich' ? 'spark' : 'question'} size={13} />{records.some((record) => record.events.some((event) => event.type === 'explain')) ? t({ ar: 'لا توجد توصية بعد', en: 'No recommendation yet' }) : t({ ar: 'بانتظار الأدلة التشخيصية', en: 'Awaiting diagnostic evidence' })}</span>
             <h3 className="subtitle">{advice.title}</h3>
           </div>
           <p>{advice.body}</p>
@@ -157,7 +156,7 @@ export function PlanTab(props: RoomTabProps) {
             <h3 className="subtitle flex-1">{name(recommended.id)}</h3>
           </div>
           <Facts {...props} ranked={recommended} result={result} />
-          {decide(recommended.id, !approved)}
+          {decide(recommended.id, !approved && meta.phase === 'approve')}
         </section>
       )}
 
@@ -206,8 +205,8 @@ export function PlanTab(props: RoomTabProps) {
                   <strong>{r.name}</strong>
                   <div className="help">{r.reasons.join(' · ')}</div>
                 </div>
-                {!readOnly && r.canChoose && r.id !== meta.experimentId && (
-                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void act({ type: 'choose', experimentId: r.id })}>
+                {canDecide && r.canChoose && r.id !== meta.experimentId && (
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => void act({ type: 'choose', experimentId: r.id, source: 'manual', expectedPhase: meta.phase })}>
                     {t({ ar: 'اختاروها رغم هيك', en: 'Choose anyway' })}
                   </button>
                 )}

@@ -10,6 +10,8 @@ import { ReasonChain } from '../../../ui/Evidence';
 import { ExperimentStage } from '../../../ui/ExperimentStage';
 import { Icon } from '../../../ui/icons';
 import type { LessonProps } from '../context';
+import { PhenomenonPreview } from '../../../ui/PhenomenonPreview';
+import { WaterRemedy } from '../WaterRemedy';
 import { HelpBar, HintCard } from '../HelpBar';
 import { GapCard, NoorSays, SourceNote, SpeakBox, Split, Title } from '../parts';
 
@@ -23,6 +25,7 @@ function CurrentStage({ pack, journey }: LessonProps) {
   const { t } = useI18n();
   const seen = observations(journey.record).at(-1);
   const model = currentDiagnosis(journey.record)?.model ?? null;
+  if (!seen) return <PhenomenonPreview pack={pack} />;
   return (
     <>
       {seen && <p className="help">{t({ ar: 'آخر تجربة عملتها:', en: 'Your last experiment:' })}</p>}
@@ -98,7 +101,8 @@ export function Understood({ pack, journey, dispatch }: LessonProps) {
   const last = lastEvent(journey.record, 'explain')!;
   const d = last.diagnosis;
   const revised = last.phase === 'revise';
-  const toTeach = observations(journey.record).length > 0 && (d.status === 'correct' || d.status === 'partial');
+  const testBeforeIntervention = !journey.quick && !!pack.preTest.length && !journey.record.events.some((e) => e.type === 'quiz' && e.kind === 'pre');
+  const toTeach = !testBeforeIntervention && (d.status === 'correct' || (observations(journey.record).length > 0 && d.status === 'partial'));
   // a partial explanation was already asked for its missing link: now invite the test
   const line = d.status === 'partial' ? t(pack.noor.invite) : d.noor;
   return (
@@ -122,7 +126,7 @@ export function Understood({ pack, journey, dispatch }: LessonProps) {
         </section>
         <div className="sl-actions">
           <button type="button" className="btn btn-primary btn-lg" onClick={() => dispatch({ type: 'continue', at: Date.now() })}>
-            {toTeach ? t({ ar: 'يلا أعلّمك', en: 'Let me teach you' }) : t({ ar: 'صح، نكمّل', en: 'Yes, carry on' })}<Icon name="next" />
+            {toTeach ? t({ ar: 'يلا أعلّمك', en: 'Let me teach you' }) : t({ ar: 'آه، هيك قصدي', en: 'Yes, that is what I meant' })}<Icon name="next" />
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => dispatch({ type: 'reword' })}><Icon name="edit" />{t({ ar: 'مش هيك قصدي', en: 'That is not what I meant' })}</button>
         </div>
@@ -152,7 +156,10 @@ export function Prereq({ pack, journey, dispatch }: LessonProps) {
     <div className="sl-center stack">
       <Title eyebrow={t({ ar: 'أساس صغير', en: 'A small foundation' })}>{t({ ar: 'وقفة قصيرة', en: 'A short stop' })}</Title>
       <NoorSays mood={task.kind === 'remedy' ? 'encouraging' : 'curious'} text={t(line)} />
-      <GapCard task={task} onAnswer={(choice) => dispatch({ type: 'prereqAnswer', choice, at: Date.now() })} onRemedyDone={() => dispatch({ type: 'remedyDone', at: Date.now() })} />
+      <GapCard task={task}
+        remedyContent={task.kind === 'remedy' && task.prereq.id === 'water_vapour'
+          ? <WaterRemedy busy={false} onDone={(reflection) => dispatch({ type: 'remedyDone', at: Date.now(), reflection })} /> : undefined}
+        onAnswer={(choice) => dispatch({ type: 'prereqAnswer', choice, at: Date.now() })} onRemedyDone={() => dispatch({ type: 'remedyDone', at: Date.now() })} />
     </div>
   );
 }

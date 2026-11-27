@@ -11,6 +11,7 @@ import { RESOURCES } from '../../../packs/resources';
 import type { ConceptPack, Question } from '../../../packs/types';
 import { href } from '../../../router';
 import { ReasonChain } from '../../../ui/Evidence';
+import { PhenomenonPreview } from '../../../ui/PhenomenonPreview';
 import { Notice } from '../../../ui/kit';
 import { Icon } from '../../../ui/icons';
 import { PageHead, SectionTitle, TeacherShell } from '../components/ui';
@@ -43,7 +44,7 @@ function ConceptGraph({ pack }: { pack: ConceptPack }) {
               <li key={node.id} className="tc-gnode" style={{ '--col': node.col, '--row': node.row } as CSSProperties}>
                 <span className="tc-gid">{node.id}</span>
                 <strong>{t(pack.concepts[node.id].label)}</strong>
-                <small>{needs.length ? `${t({ ar: 'مبني على', en: 'Builds on' })}: ${needs.join(' + ')}` : t({ ar: 'أساس', en: 'Foundation' })}</small>
+                <small>{needs.length ? `${t({ ar: 'مبني على', en: 'Builds on' })} ${needs.map((id) => t(pack.concepts[id].label)).join(' · ')}` : t({ ar: 'أساس', en: 'Foundation' })}</small>
               </li>
             );
           })}
@@ -80,13 +81,10 @@ function PackDetail({ pack }: { pack: ConceptPack }) {
         <div className="row">
           <span className="chip chip-brand">{t(SUBJECT_LABEL[pack.subject])}</span>
           <span className="chip">{t({ ar: 'الصفوف', en: 'Grades' })} {n(pack.grades[0])}–{n(pack.grades[1])}</span>
-          <span className={`chip ${pack.curriculum.verified ? 'chip-real' : 'chip-idea'}`}>
-            <Icon name={pack.curriculum.verified ? 'shield' : 'question'} size={14} />
-            {pack.curriculum.verified ? t({ ar: 'المنهاج متحقَّق منه', en: 'Curriculum verified' }) : t({ ar: 'المنهاج مش متحقَّق منه', en: 'Curriculum not verified' })}
-          </span>
         </div>
         <h2 className="title">{t(pack.title)}</h2>
         <p className="text-[19px] font-semibold">{t(pack.question)}</p>
+        <PhenomenonPreview pack={pack} compact />
         <p className="muted text-[14px]">{t(pack.curriculum.note)}</p>
         <div className="row">
           <a className="btn btn-warm" href={href(`/teacher/new?pack=${pack.id}`)}><Icon name="plus" />{t({ ar: 'افتحوا حصة من هالدرس', en: 'Create a session' })}</a>

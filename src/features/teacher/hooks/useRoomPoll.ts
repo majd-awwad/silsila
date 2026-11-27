@@ -12,6 +12,15 @@ const RETRY_MS = 3500;
 /** a room that is gone is asked about rarely, in case the server comes back with it */
 const GONE_MS = 10_000;
 
+function olderVersion(incoming: string, current?: string): boolean {
+  const next = /^v(\d+)\.([\da-z]+)$/.exec(incoming);
+  const last = current && /^v(\d+)\.([\da-z]+)$/.exec(current);
+  if (!next || !last) return false;
+  const nextRoom = Number.parseInt(next[2], 36);
+  const lastRoom = Number.parseInt(last[2], 36);
+  return nextRoom < lastRoom || (nextRoom === lastRoom && Number(next[1]) < Number(last[1]));
+}
+
 export interface RoomPoll<V extends RoomView> {
   view: V | null;
   error: RoomError | null;
@@ -30,6 +39,7 @@ export function useRoomPoll<V extends RoomView>(
   const generation = useRef(0);
 
   const apply = useCallback((view: V) => {
+    if (olderVersion(view.version, version.current)) return;
     generation.current++;
     version.current = view.version;
     setState({ for: code, view, error: null });
@@ -61,7 +71,7 @@ export function useRoomPoll<V extends RoomView>(
             setState((s) => ({ for: code, view: s.for === code ? s.view : null, error: r.error }));
           } else if ('unchanged' in r.data) {
             setState((s) => (s.error ? { ...s, error: null } : s));
-          } else {
+          } else if (!olderVersion(r.data.version, version.current)) {
             version.current = r.data.version;
             setState({ for: code, view: r.data, error: null });
           }
@@ -70,7 +80,7 @@ export function useRoomPoll<V extends RoomView>(
       } catch {
         // the sample classroom runs on this device: damaged stored data ends up here
         if (!alive) return;
-        setState((s) => ({ ...s, for: code, error: 'store_failed' }));
+        if (asked === generation.current) setState((s) => ({ ...s, for: code, error: 'store_failed' }));
         delay = RETRY_MS;
       }
       timer = setTimeout(poll, delay);
@@ -81,6 +91,14 @@ export function useRoomPoll<V extends RoomView>(
       clearTimeout(timer);
     };
   }, [code, role, teacherKey, enabled, everyMs, nonce, seat]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const resume = () => { if (!document.hidden) refresh(); };
+    window.addEventListener('online', refresh);
+    document.addEventListener('visibilitychange', resume);
+    return () => { window.removeEventListener('online', refresh); document.removeEventListener('visibilitychange', resume); };
+  }, [enabled, refresh]);
 
   const mine = state.for === code;
   return { view: mine ? state.view : null, error: mine ? state.error : null, apply, refresh };

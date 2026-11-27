@@ -39,8 +39,8 @@ function classroom(pack: ConceptPack): RoomData {
   for (const i of [1, 2, 3]) d = must(addParticipant(d, `pid-secret-${i}`, `AliasSecret${i}`));
   return d;
 }
-const explain = (pack: ConceptPack, d: RoomData, i: number, ideaId: string | null): RoomData =>
-  must(studentOp(pack, d, `pid-secret-${i}`, { type: 'explain', text: WORDS[i - 1] }, { diagnosis: diagnosisFor(pack, WORDS[i - 1], ideaId) }));
+const explain = (pack: ConceptPack, d: RoomData, i: number, ideaId: string | null, text = WORDS[i - 1]): RoomData =>
+  must(studentOp(pack, d, `pid-secret-${i}`, { type: 'explain', text }, { diagnosis: diagnosisFor(pack, text, ideaId) }));
 
 describe.each(PACK_LIST.map((p) => [p.id, p] as const))('classroom rules: %s', (_id, pack) => {
   const x = pack.experiments[0];
@@ -76,8 +76,8 @@ describe.each(PACK_LIST.map((p) => [p.id, p] as const))('classroom rules: %s', (
       expect(!!mine.agg.groups).toBe(from('map'));
       expect(unexplained.agg.groups, 'ideas hidden from a learner who has not explained').toBeNull();
       expect(unexplained.agg.revisedGroups).toBeNull();
-      // classmates' words appear only during discussion
-      expect((screen.agg.groups ?? []).some((g) => g.quotes.length > 0), `${phase} quotes`).toBe(phase === 'discuss');
+      // Verbatim responses can identify a child even without a displayed alias.
+      expect((screen.agg.groups ?? []).some((g) => g.quotes.length > 0), `${phase} quotes`).toBe(false);
 
       // the shared screen is anonymous
       const wall = JSON.stringify(screen);
@@ -86,7 +86,7 @@ describe.each(PACK_LIST.map((p) => [p.id, p] as const))('classroom rules: %s', (
       // a learner sees their own record only
       const own = JSON.stringify(mine);
       for (const other of ['AliasSecret2', 'AliasSecret3', 'pid-secret-2', 'pid-secret-3']) expect(own).not.toContain(other);
-      if (phase !== 'discuss') expect(own).not.toContain(WORDS[1]);
+      expect(own).not.toContain(WORDS[1]);
       // no observed result in a learner's own log before the teacher shows it
       expect(eventsOf(mine.me.record, 'observe').length > 0, `${phase} own result`).toBe(from('observe'));
     }
@@ -141,7 +141,7 @@ describe.each(PACK_LIST.map((p) => [p.id, p] as const))('classroom rules: %s', (
     expect(checkStudentOp(pack, d, 'pid-secret-1', { type: 'explain', text: 'again' })).toBe('locked');
     d = explain(pack, d, 2, null);
     expect(checkStudentOp(pack, d, 'pid-secret-2', { type: 'explain', text: 'clearer' })).toBeNull();
-    d = explain(pack, d, 2, wrongIdeas(pack)[0]);
+    d = explain(pack, d, 2, wrongIdeas(pack)[0], 'private clarification with new reasoning');
     expect(eventsOf(d.participants[1].record, 'explain').map((e) => e.phase)).toEqual(['initial', 'clarify']);
 
     d = goto(pack, teach(pack, d, { type: 'choose', experimentId: x.id }), 'predict');

@@ -61,3 +61,7 @@ One SVG character, seven moods (`curious, listening, thinking, surprised, encour
 ## Accessibility notes
 
 Skip link, visible focus (3 px), 44 px primary targets, labelled controls, `aria-live` for Noor and results, 2D scenes as the alternative to 3D, high-contrast tokens under `html[data-contrast="high"]`, print styles for reports. This has not been audited or certified against WCAG.
+
+## Manual QA refresh
+
+The discovery lab uses the same phenomenon previews as the child library and student onboarding. The original exhibit has no prediction gate. New experiment setups hide outcomes until the learner locks a prediction. Collective Discovery shows a labelled sample and runs the classroom planner against its groups. Responsive composition follows the UI/UX Pro Max gallery layout principles while keeping the existing teal, ivory, mint and amber palette, fonts and chain controls.

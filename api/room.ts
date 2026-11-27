@@ -15,7 +15,7 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { RoomRequest } from '../src/contracts';
 import type { RoomError, RoomSettings, StudentOp } from '../src/contracts';
 import { eventsOf } from '../src/brain/records';
-import { addParticipant, checkStudentOp, newRoom, studentOp, teacherOp, viewFor } from '../src/brain/room';
+import { addParticipant, checkStudentOp, newRoom, PRESENCE_PULSE_MS, studentOp, teacherOp, viewFor } from '../src/brain/room';
 import type { Analysis, RoomData } from '../src/brain/room';
 import { SAMPLE_CODE } from '../src/brain/sample';
 import { RESOURCE_IDS } from '../src/packs/resources';
@@ -115,6 +115,21 @@ async function view(store: RoomStore, req: Request_<'view'>, ip: string): Promis
   if (req.role === 'teacher' && !keyMatches(req.teacherKey, head.teacherHash)) return refuse('forbidden');
   if (req.role === 'student' && !isSeat(head, req.participantId, req.key)) return refuse('forbidden');
   if (head.meta.closed && req.role !== 'teacher') return refuse('room_closed');
+  if (req.role === 'student' && head.meta.phase === 'lobby') {
+    const now = Date.now();
+    const snapshot = await store.read(head);
+    const seat = snapshot?.participants.find((p) => p.id === req.participantId);
+    if (seat && now - (seat.lastSeenAt ?? seat.joinedAt) >= PRESENCE_PULSE_MS) {
+      await store.update(req.code, (state) => {
+        if (!state || state.head.meta.closed || state.head.meta.phase !== 'lobby' || !isSeat(state.head, req.participantId, req.key)) return { value: undefined };
+        const active = state.participants.find((p) => p.id === req.participantId);
+        if (!active || now - (active.lastSeenAt ?? active.joinedAt) < PRESENCE_PULSE_MS) return { value: undefined };
+        const participants = state.participants.map((p) => p.id === active.id ? { ...p, lastSeenAt: now } : p);
+        return { value: undefined, commit: { meta: state.head.meta, participants, keys: state.head.keys } };
+      });
+      // The heartbeat advanced the revision. The next poll will receive that view.
+    }
+  }
   if (req.since === versionFor(head.rev, head.meta.createdAt)) return json({ unchanged: true });
 
   const snapshot = await store.read(head);

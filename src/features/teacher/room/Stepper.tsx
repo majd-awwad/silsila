@@ -1,96 +1,79 @@
-/** The session as a chain of phases, with one primary action that says what it will do. */
-import { useEffect, useRef } from 'react';
-import { PHASES } from '../../../contracts';
-import type { Phase, RoomMeta, TeacherOp } from '../../../contracts';
-import { phaseIndex } from '../../../brain/room';
+import { useState } from 'react';
+import type { L, Phase, RoomMeta, TeacherOp } from '../../../contracts';
 import { useI18n } from '../../../i18n';
-import { href } from '../../../router';
 import { Icon } from '../../../ui/icons';
-import { advanceFrom, needsExperiment, prevPhase } from '../logic/insight';
-import type { Counts, RoomTab } from '../logic/insight';
+import { href } from '../../../router';
+import { ConfirmModal, Meter } from '../components/ui';
+import { advanceFrom } from '../logic/insight';
+import type { Counts } from '../logic/insight';
 import { PHASE_DOES, PHASE_NAME } from '../logic/labels';
 
-export function Stepper({ phase }: { phase: Phase }) {
+const stages: L[] = [
+  { ar: 'الإعداد', en: 'Prepare' }, { ar: 'الانضمام', en: 'Join' }, { ar: 'اكتشاف أفكار الصف', en: 'Discover class thinking' },
+  { ar: 'اختيار التجربة', en: 'Select an experiment' }, { ar: 'التجربة والمراجعة', en: 'Experiment and revise' }, { ar: 'التقييم والمتابعة', en: 'Assess and follow up' },
+];
+const stageOf: Record<Phase, number> = { lobby: 1, explain: 2, map: 2, recommend: 3, approve: 3, predict: 4, reveal: 4, experiment: 4, observe: 4, discuss: 4, revise: 4, transfer: 5, insight: 5 };
+
+export function Stepper({ phase }: { phase?: Phase }) {
   const { t, n } = useI18n();
-  const list = useRef<HTMLOListElement>(null);
-  const at = phaseIndex(phase);
-  // keep the current step in view on narrow screens, without moving the page
-  useEffect(() => {
-    const box = list.current;
-    const now = box?.querySelector<HTMLElement>('[aria-current="step"]');
-    if (!box || !now) return;
-    const a = box.getBoundingClientRect();
-    const b = now.getBoundingClientRect();
-    box.scrollBy({ left: b.left + b.width / 2 - (a.left + a.width / 2) });
-  }, [phase]);
-  return (
-    <ol className="tc-steps" ref={list} tabIndex={0} aria-label={t({ ar: 'مراحل الحصة', en: 'Session phases' })}>
-      {PHASES.map((p, i) => (
-        <li key={p} className={`tc-step ${i < at ? 'is-done' : i === at ? 'is-now' : ''}`} aria-current={i === at ? 'step' : undefined}>
-          <i aria-hidden="true">{i < at ? <Icon name="check" size={16} /> : n(i + 1)}</i>
-          <span>{t(PHASE_NAME[p])}{i < at && <span className="sr-only"> ({t({ ar: 'تمّت', en: 'done' })})</span>}</span>
-        </li>
-      ))}
-    </ol>
-  );
+  const at = phase ? stageOf[phase] : 0;
+  return <ol className="live-steps" aria-label={t({ ar: 'مراحل الحصة', en: 'Classroom stages' })}>
+    {stages.map((label, i) => <li key={label.en} className={i < at ? 'is-done' : i === at ? 'is-now' : ''} aria-current={i === at ? 'step' : undefined}>
+      <span aria-hidden="true">{i < at ? <Icon name="check" size={15} /> : n(i + 1)}</span>{t(label)}
+    </li>)}
+  </ol>;
 }
 
-export function NextAction({ meta, counts, busy, act, goTab }: {
-  meta: RoomMeta; counts: Counts; busy: boolean; act: (op: TeacherOp) => Promise<boolean>; goTab: (tab: RoomTab) => void;
+const action: Record<Exclude<Phase, 'lobby'>, L> = {
+  explain: { ar: 'ابدأ الحصة', en: 'Start lesson' },
+  map: { ar: 'راجع أفكار الصف', en: 'Review class thinking' },
+  recommend: { ar: 'افتح مخطّط التجربة', en: 'Open experiment planner' },
+  approve: { ar: 'انتقل لاعتماد التجربة', en: 'Continue to experiment approval' },
+  predict: { ar: 'أرسل سؤال التوقّع', en: 'Send prediction question' },
+  reveal: { ar: 'اعرض توقّعات الصف', en: 'Reveal class predictions' },
+  experiment: { ar: 'اعرض إعداد التجربة', en: 'Show the experiment setup' },
+  observe: { ar: 'شغّل التجربة واعرض النتيجة', en: 'Run the experiment and show results' },
+  discuss: { ar: 'افتح النقاش', en: 'Open discussion' },
+  revise: { ar: 'اطلب شرحاً جديداً', en: 'Request a revised explanation' },
+  transfer: { ar: 'أرسل سؤال التطبيق', en: 'Send transfer question' },
+  insight: { ar: 'راجع أدلة التعلّم', en: 'Review learning evidence' },
+};
+
+export function NextAction({ meta, counts, busy, act }: {
+  meta: RoomMeta; counts: Counts; busy: boolean; act: (op: TeacherOp) => Promise<boolean>;
 }) {
   const { t, n } = useI18n();
+  const [confirm, setConfirm] = useState<Phase | null>(null);
   const { target, blocked, waiting } = advanceFrom(meta.phase, !!meta.experimentId, counts);
-  const previous = prevPhase(meta.phase);
-  // after skipping the shared experiment, «back» returns to the approval step
-  const back = previous && needsExperiment(previous) && !meta.experimentId ? 'approve' : previous;
-  const go = (phase: Phase) => void act({ type: 'phase', phase });
-  return (
-    <div className="tc-next">
-      <div className="tc-next-text" aria-live="polite">
-        {target ? (
-          <>
-            <strong className="block">{t({ ar: 'الخطوة الجاية', en: 'Next' })}: {t(PHASE_NAME[target])}</strong>
-            <p className="text-[14.5px]">{t(PHASE_DOES[target])}</p>
-            {blocked && (
-              <p className="text-[14.5px] font-bold text-probe-ink flex gap-2 items-center">
-                <Icon name="lock" size={16} />{t({ ar: 'وافقوا على تجربة أول، وبعدها بيفتح التوقّع.', en: 'Approve an experiment first; predictions open after that.' })}
-              </p>
-            )}
-            {waiting > 0 && !blocked && (
-              <p className="text-[14px] font-bold text-idea-ink flex gap-2 items-center">
-                <Icon name="clock" size={16} />{t({ ar: `${n(waiting)} لسا ما خلّصوا مهمّة هالمرحلة.`, en: `${waiting} have not finished this phase’s task.` })}
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            <strong className="block">{t({ ar: 'وصلتوا آخر مرحلة', en: 'This is the last phase' })}</strong>
-            <p className="text-[14.5px]">{t({ ar: 'راجعوا التغيّر، اطبعوا التقرير، وبعدها سكّروا الصف.', en: 'Review what changed, print the report, then close the room.' })}</p>
-          </>
-        )}
-      </div>
-      <div className="row">
-        <button type="button" className="btn btn-secondary" disabled={busy || !back} onClick={() => back && go(back)}>
-          <Icon name="back" size={17} />{back ? t({ ar: `رجوع: ${t(PHASE_NAME[back])}`, en: `Back: ${t(PHASE_NAME[back])}` }) : t({ ar: 'رجوع', en: 'Back' })}
-        </button>
-        {blocked ? (
-          <>
-            <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => go('revise')}>
-              {t({ ar: 'تخطّوا التجربة للشرح الجديد', en: 'Skip the experiment to revising' })}
-            </button>
-            <button type="button" className="btn btn-primary btn-lg" onClick={() => goTab('plan')}>
-              <Icon name="flask" />{t({ ar: 'اختاروا التجربة', en: 'Choose the experiment' })}
-            </button>
-          </>
-        ) : target ? (
-          <button type="button" className="btn btn-primary btn-lg" disabled={busy} onClick={() => go(target)}>
-            {busy ? <span className="spinner" aria-hidden="true" /> : <Icon name="next" />}
-            {t(PHASE_NAME[target])}
-          </button>
-        ) : (
-          <a className="btn btn-primary btn-lg" href={href(`/teacher/room/${meta.code}/report`)}><Icon name="print" />{t({ ar: 'التقرير', en: 'Report' })}</a>
-        )}
-      </div>
+  const progress = { explain: counts.explained, predict: counts.predicted, revise: counts.revised, transfer: counts.transferred };
+  const submitted = progress[meta.phase as keyof typeof progress];
+  const go = (phase: Phase) => void act({ type: 'phase', phase, expectedPhase: meta.phase, expectedExperiment: meta.experimentId }).then((ok) => { if (ok) setConfirm(null); });
+  return <section className="live-now">
+    <div className="stack !gap-2">
+      <span className="eyebrow">{t({ ar: 'الآن', en: 'Now' })}</span>
+      <h2>{t(PHASE_NAME[meta.phase])}</h2>
+      <p>{t(PHASE_DOES[meta.phase])}</p>
+      {submitted !== undefined
+        ? <Meter label={t({ ar: 'أرسلوا الإجابة', en: 'Submitted' })} value={submitted} max={counts.participants} />
+        : <strong>{n(counts.participants)} {t({ ar: 'انضمّوا إلى الحصة', en: 'joined the lesson' })}</strong>}
     </div>
-  );
+    <div className="live-next stack !gap-2">
+      <span className="eyebrow">{t({ ar: 'الخطوة التالية', en: 'Next action' })}</span>
+      {blocked ? <>
+        <p>{t({ ar: 'اعتمد تجربة من المخطّط لإرسال سؤال التوقّع.', en: 'Approve an experiment in the planner to send the prediction question.' })}</p>
+        <button className="btn btn-secondary" disabled={busy} onClick={() => setConfirm('revise')}>{t({ ar: 'المتابعة مباشرة إلى الشرح الجديد', en: 'Continue directly to revised explanations' })}</button>
+      </> : target && target !== 'lobby' ? <>
+        <p>{t(PHASE_DOES[target])}</p>
+        <button className="btn btn-primary btn-lg" disabled={busy} onClick={() => waiting > 0 ? setConfirm(target) : go(target)}>
+          <Icon name="next" />{t(action[target])}
+        </button>
+      </> : <a className="btn btn-primary btn-lg" href={href('/teacher/room/' + meta.code + '/report')}>{t({ ar: 'افتح التقرير وخطة التدخّل', en: 'Open report and intervention plan' })}</a>}
+    </div>
+    <ConfirmModal open={!!confirm} busy={busy} onClose={() => setConfirm(null)} onConfirm={() => confirm && go(confirm)}
+      title={t({ ar: 'متابعة الحصة؟', en: 'Continue the lesson?' })} confirmLabel={t({ ar: 'انتقل الآن', en: 'Continue now' })}>
+      {blocked ? t({ ar: 'سيبدأ الشرح الجديد من دون إجراء تجربة مشتركة.', en: 'Revised explanations will open without running a shared experiment.' })
+        : waiting > 0 ? t({ ar: `لم يُرسل ${n(waiting)} من المتعلّمين إجابتهم بعد. سيُغلق النشاط الحالي عند الانتقال.`, en: `${waiting} learners have not submitted. Continuing closes the current task.` })
+          : t({ ar: 'وصلت جميع الإجابات. يمكنك الانتقال الآن.', en: 'All responses have arrived. You can continue now.' })}
+    </ConfirmModal>
+  </section>;
 }

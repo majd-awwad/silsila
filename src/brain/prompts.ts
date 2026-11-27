@@ -260,6 +260,7 @@ export function activityUser(p: ConceptPack, req: ActivityRequest, allowed: Reso
       return `- ${x.name[req.lang]} (${x.minutes} min): result "${real}"${theirs ? `; the targeted idea predicts "${theirs}"` : ''}. Safety: ${x.safety.note.en}`;
     });
   return `Requested: type "${req.type}", ${req.minutes} minutes, grade ${req.grade}, ${req.classSize} learners.
+Learning objective: ${(p.objectives.find((goal) => goal.id === req.objective) ?? p.objectives[0]).text[req.lang]}.
 Allowed material ids: ${allowed.map((m) => `${m} (${RESOURCES[m].en})`).join(', ') || 'none'}.
 Feasible experiments and their computed results:
 ${experiments.join('\n') || '- none: use discussion or drawing, and claim no experimental result'}

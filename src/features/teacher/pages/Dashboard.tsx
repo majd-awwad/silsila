@@ -16,7 +16,7 @@ import { loadRecords } from '../../../store/records';
 import { Bar, EmptyState, Loading, Notice } from '../../../ui/kit';
 import { Icon } from '../../../ui/icons';
 import type { IconName } from '../../../ui/icons';
-import { ConfirmModal, Meter, PageHead, SectionTitle, TeacherShell } from '../components/ui';
+import { ConfirmModal, Meter, SectionTitle, TeacherShell } from '../components/ui';
 import { useRoomPoll } from '../hooks/useRoomPoll';
 import { PHASE_NAME, ROOM_ERROR, ideaName } from '../logic/labels';
 import { ensureSample } from '../logic/sampleRoom';
@@ -49,7 +49,7 @@ function RoomRow({ room, onForget }: { room: TeacherRoom; onForget: () => void }
         {view && error && <span className="text-probe-ink text-[13px]" role="status">{t(ROOM_ERROR[error])} {t({ ar: 'الأرقام من آخر اتصال.', en: 'Numbers are from the last connection.' })}</span>}
       </div>
       <div className="row">
-        <a className="btn btn-primary btn-sm" href={href(`/teacher/room/${room.code}`)}>{t({ ar: 'غرفة التحكّم', en: 'Control room' })}</a>
+        <a className="btn btn-primary btn-sm" href={href(`/teacher/room/${room.code}`)}>{view?.meta.closed ? t({ ar: 'عرض أدلة الحصة', en: 'View class evidence' }) : t({ ar: 'استئناف الحصة', en: 'Resume lesson' })}</a>
         <a className="btn btn-secondary btn-sm" href={href(`/screen/${room.code}`)} target="_blank" rel="noreferrer"><Icon name="screen" size={16} />{t({ ar: 'الشاشة', en: 'Projector' })}</a>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onForget} aria-label={t({ ar: `شيلوا الصف ${room.code} من هالجهاز`, en: `Remove room ${room.code} from this device` })}>
           <Icon name="trash" size={16} />
@@ -94,12 +94,12 @@ function IndividualLessons() {
           <article key={pack.id} className="card stack !gap-3">
             <div className="row">
               <h3 className="tc-h3 flex-1">{t(pack.title)}</h3>
-              <span className="chip">{t({ ar: 'دروس', en: 'Lessons' })}: {n(list.length)}</span>
+              <span className="chip">{t({ ar: 'محاولات', en: 'Attempts' })}: {n(list.length)}</span>
               <span className="chip">{t({ ar: 'فيها شرح', en: 'With an explanation' })}: {n(s.explained)}</span>
             </div>
             {s.ideas.length ? (
               <div className="stack !gap-2" aria-label={t({ ar: 'توزيع الأفكار اللي بدها اختبار', en: 'Distribution of ideas to investigate' })}>
-                <p className="help">{t({ ar: 'أفكار بتختلف عن النموذج العلمي، من أول شرح لكل متعلّم:', en: 'Ideas that differ from the reference model, from each learner’s first explanation:' })}</p>
+                <p className="help">{t({ ar: 'أفكار بتختلف عن النموذج العلمي، من أول شرح في كل محاولة.', en: 'Ideas that differ from the reference model, from the first explanation in each attempt.' })}</p>
                 {s.ideas.map((i) => (
                   <Bar key={i.id} label={ideaName(pack, i.id)[lang]} value={i.count} max={max}
                     note={i.persisting ? t({ ar: `ضلّت بعد الشرح الجديد عند ${n(i.persisting)}`, en: `Still present after revising: ${i.persisting}` }) : undefined} />
@@ -138,30 +138,23 @@ export function Dashboard() {
 
   return (
     <TeacherShell active="home">
-      <PageHead
-        eyebrow={t({ ar: 'مساحة المعلّم', en: 'Teacher workspace' })}
-        title={t({ ar: 'شوفوا كيف بيفكّر صفّكم', en: 'See how your class is thinking' })}
-        lead={t({ ar: 'افتحوا حصة: المتعلّمين بيشرحوا لحالهم، الأفكار بتتجمّع، وبتختاروا تجربة تفرّق بينها.', en: 'Open a session: learners explain privately, ideas are grouped, and you choose an experiment that tells them apart.' })}
-      />
-      {sampleFailed && <Notice tone="error">{t({ ar: 'ما قدرنا نجهّز الصف التجريبي.', en: 'The sample classroom could not be prepared.' })}</Notice>}
+      <section className="live-dashboard-hero">
+        <div className="stack !gap-2">
+          <span className="eyebrow">{t({ ar: 'مساحة المعلّم', en: 'Teacher workspace' })}</span>
+          <h1 className="title">{t({ ar: 'ماذا يفكّر صفّك؟', en: 'How is your class thinking?' })}</h1>
+          <p>{t({ ar: 'اجمع تفسيرات المتعلّمين، واختر تجربة تميّز بين أفكارهم، ثم راجع الأدلة لتخطّط للمتابعة.', en: 'Collect learners’ explanations, choose an experiment that distinguishes their ideas, and use the evidence to plan follow-up.' })}</p>
+        </div>
+        <div className="row">
+          <a className="btn btn-warm btn-lg" href={href('/teacher/new')}><Icon name="plus" />{t({ ar: 'ابدأ حصة اكتشاف', en: 'Start a discovery lesson' })}</a>
+          <button type="button" className="btn btn-secondary" onClick={openSample}><Icon name="eye" />{t({ ar: 'استعرض صفاً تجريبياً', en: 'Explore a sample classroom' })}</button>
+        </div>
+      </section>
+      {sampleFailed && <Notice tone="error">{t({ ar: 'تعذّر تجهيز الصف التجريبي.', en: 'The sample classroom could not be prepared.' })}</Notice>}
       <div className="tc-split">
         <div className="stack !gap-7">
-          <div className="stage tc-hero">
-            <div className="flex-1 min-w-[min(100%,260px)]">
-              <h2 className="subtitle">{t({ ar: 'ابدأوا حصة اكتشاف', en: 'Start a discovery session' })}</h2>
-              <p className="muted">{t({ ar: 'اختاروا الدرس والوقت والمواد، وبيطلعلكم رمز للانضمام.', en: 'Choose the lesson, time and materials and get a join code.' })}</p>
-            </div>
-            <div className="row">
-              <a className="btn btn-warm btn-lg" href={href('/teacher/new')}><Icon name="plus" />{t({ ar: 'حصة جديدة', en: 'New session' })}</a>
-              <button type="button" className="btn btn-secondary btn-lg" onClick={openSample}>
-                <Icon name="eye" />{t({ ar: 'صف تجريبي (بيانات وهمية)', en: 'Sample classroom (example data)' })}
-              </button>
-            </div>
-          </div>
-
           <section className="stack">
-            <SectionTitle hint={t({ ar: 'الصفوف اللي انفتحت من هالجهاز بآخر ٦ ساعات. مفتاح المعلّم محفوظ هون بس.', en: 'Rooms opened from this device in the last 6 hours. The teacher key is kept here only.' })}>
-              {t({ ar: 'صفوفكم المفتوحة', en: 'Your open rooms' })}
+            <SectionTitle hint={t({ ar: 'الحصص التي أُنشئت من هذا الجهاز خلال آخر ست ساعات. إدارة الحصة متاحة من المتصفّح الذي أنشأها.', en: 'Rooms opened from this device in the last 6 hours. The teacher key is kept here only.' })}>
+              {t({ ar: 'حصصك على هذا الجهاز', en: 'Your classrooms on this device' })}
             </SectionTitle>
             {rooms.length ? (
               <ul className="tc-rooms tc-plain">
