@@ -47,6 +47,8 @@ async function post(url: string, body: unknown, timeout = TIMEOUT_MS): Promise<{
 
 async function ask<T>(url: string, body: unknown, schema: z.ZodType<T>, fallback: (reason: 'network' | 'offline_mode') => T, timeout = TIMEOUT_MS): Promise<T> {
   if (offlineMode.get()) return fallback('offline_mode');
+  // the browser already knows there is no connection: do not wait for a timeout, answer with the rules on this device
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return fallback('network');
   try {
     const r = await post(url, body, timeout);
     if (r.status !== 200) throw new Error('http_' + r.status);

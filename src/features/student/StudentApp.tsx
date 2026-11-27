@@ -6,6 +6,7 @@ import { journeyReducer, startJourney, STEPS } from '../../flow/journey';
 import type { Action, Journey, Step } from '../../flow/journey';
 import { useI18n } from '../../i18n';
 import { isJudgeMode } from '../../mode';
+import { useOnline } from '../../flow/outbox';
 import { HomeworkBar } from '../homework/HomeworkBar';
 import { PACK_LIST, PACKS } from '../../packs';
 import { href, useRoute } from '../../router';
@@ -67,6 +68,7 @@ function LessonEntry({ requested, quick, judge, homework }: { requested: string 
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
   const voice = useNoorVoice(lang, judge);
+  const online = useOnline();
   const pack = journey && PACKS[journey.record.pack];
 
   useEffect(() => {
@@ -201,6 +203,7 @@ function LessonEntry({ requested, quick, judge, homework }: { requested: string 
     <Shell actions={<><VoiceToggle /><button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm(pack.id)} disabled={busy}>
       {t({ ar: 'ابدأ من جديد', en: 'Start over' })}
     </button></>}>
+      {!online && <div className="card" role="status"><strong>{t({ ar: 'بدون اتصال: نور عم تستخدم الفهم المتاح على الجهاز.', en: 'Offline: Noor is using the understanding available on this device.' })}</strong> {t({ ar: 'الدرس بيكمّل، وكل إشي بينحفظ هون. التشخيص بالقواعد المحلية وممكن يكون أقل دقة.', en: 'The lesson goes on and everything is saved here. Diagnosis uses the local rules and may be less precise.' })}</div>}
       {homework && <HomeworkBar code={homework} record={record} />}
       <ChainProgress steps={progress} current={milestone(journey.step)} />
       {storageNotice}

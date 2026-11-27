@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import type { LearnerRecord, StudentRoomView } from '../../contracts';
 import { roomApi, seats } from '../../brain/client';
 import { eventsOf } from '../../brain/records';
+import { deliver } from '../../flow/deliver';
+import { enqueue, useOutbox } from '../../flow/outbox';
 import { useI18n } from '../../i18n';
 import { href } from '../../router';
 
@@ -13,6 +15,7 @@ export function HomeworkBar({ code, record }: { code: string; record: LearnerRec
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [reload, setReload] = useState(0);
   useEffect(() => {
     if (!seat) return;
     let alive = true;
@@ -22,7 +25,8 @@ export function HomeworkBar({ code, record }: { code: string; record: LearnerRec
       if (r.ok && !('unchanged' in r.data)) setView(r.data);
     });
     return () => { alive = false; };
-  }, [code, seat?.participantId]);
+  }, [code, seat?.participantId, reload]);
+  const waiting = useOutbox(code, deliver, () => setReload((v) => v + 1));
   const when = (ms: number) => new Date(ms).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
   const due = view?.meta.settings.dueAt ?? null;
   const late = due !== null && Date.now() > due;
@@ -41,6 +45,8 @@ export function HomeworkBar({ code, record }: { code: string; record: LearnerRec
     setBusy(false);
     if (r.ok) { setView(r.data); setOffline(false); setMessage(null); return; }
     setOffline(r.error === 'network');
+    // no connection: the hand-in waits on this device and goes out by itself when the connection returns
+    if (r.error === 'network') enqueue({ code, participantId: seat.participantId, key: seat.key, kind: 'submit', record });
     setMessage(r.error === 'locked'
       ? t({ ar: 'خلص موعد التسليم. شغلك محفوظ، بس ما عاد ينبعت.', en: 'The due time has passed. Your work is saved but can no longer be handed in.' })
       : r.error === 'network'
@@ -57,7 +63,9 @@ export function HomeworkBar({ code, record }: { code: string; record: LearnerRec
     {view?.me.submittedAt
       ? <p role="status">{t({ ar: `سلّمت ${when(view.me.submittedAt)}. ${late ? '' : 'بتقدر تسلّم من جديد قبل الموعد، وبينحسب آخر تسليم.'}`, en: `Handed in ${when(view.me.submittedAt)}. ${late ? '' : 'You can hand in again before the due time; the last one counts.'}` })}</p>
       : <p>{ready ? t({ ar: 'كمّل الدرس لآخره أو سلّم هلأ اللي وصلت له.', en: 'Finish the lesson, or hand in what you have so far.' }) : t({ ar: 'احكي فكرتك أول، وبعدين بتقدر تسلّم.', en: 'Say your idea first, then you can hand in.' })}</p>}
-    {offline && <p className="help" role="status">{t({ ar: 'بدون اتصال بالسيرفر هلأ. شغلك محفوظ على جهازك.', en: 'Not connected to the server right now. Your work is saved on your device.' })}</p>}
+    {waiting > 0
+      ? <p role="status">{t({ ar: 'بدون اتصال: تسليمك انحفظ على جهازك وبينبعت لحاله لما يرجع الاتصال. ما لازم تضغط مرة تانية.', en: 'Offline: your hand-in is saved on this device and will be sent by itself when the connection returns. No need to press again.' })}</p>
+      : offline && <p className="help" role="status">{t({ ar: 'بدون اتصال بالسيرفر هلأ. شغلك محفوظ على جهازك.', en: 'Not connected to the server right now. Your work is saved on your device.' })}</p>}
     {message && <p role="alert">{message}</p>}
     <button type="button" className="btn btn-primary self-start" disabled={busy || late || !ready} onClick={() => void submit()}>
       {busy ? t({ ar: 'عم نسلّم…', en: 'Handing in…' }) : view?.me.submittedAt ? t({ ar: 'سلّم من جديد', en: 'Hand in again' }) : t({ ar: 'سلّم للمعلّم', en: 'Hand in to the teacher' })}

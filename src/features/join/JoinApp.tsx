@@ -5,7 +5,9 @@ import { eventsOf, initialDiagnosis, lastEvent } from '../../brain/records';
 import { experimentById, experimentConditions } from '../../brain/world';
 import type { RoomError, StudentOp, StudentRoomView } from '../../contracts';
 import { FATAL_ERRORS, ROOM_MESSAGES, canSend, classTask, cleanCode, isQuickNow, stepsFor, validCode } from '../../flow/classroom';
+import { deliver } from '../../flow/deliver';
 import { gapTask } from '../../flow/gaps';
+import { enqueue, useOnline, useOutbox } from '../../flow/outbox';
 import { useI18n } from '../../i18n';
 import { PACKS } from '../../packs';
 import { href, navigate } from '../../router';
@@ -73,6 +75,8 @@ function ClassLesson({ code, seat, onLeave }: { code: string; seat: Seat; onLeav
   const pack = view && PACKS[view.meta.settings.pack];
   const problem = poll.error ?? actionError;
   const fatal = poll.error && FATAL_ERRORS.includes(poll.error);
+  const waiting = useOutbox(code, deliver, poll.refresh);
+  const online = useOnline();
   const send = async (op: StudentOp) => {
     if (running.current || !view || !pack || !canSend(pack, view, op)) return false;
     running.current = true;
@@ -81,6 +85,8 @@ function ClassLesson({ code, seat, onLeave }: { code: string; seat: Seat; onLeav
     try {
       const result = await roomApi.student(code, seat, op);
       if (!result.ok) {
+        // no connection: keep the send on this device and let it go by itself when the connection returns
+        if (result.error === 'network') enqueue({ code, participantId: seat.participantId, key: seat.key, kind: 'op', op });
         setActionError(result.error);
         poll.refresh();
         return false;
@@ -103,6 +109,9 @@ function ClassLesson({ code, seat, onLeave }: { code: string; seat: Seat; onLeav
           {poll.error ? t({ ar: 'عم نحاول نرجع نتّصل بالصف', en: 'Reconnecting to your class' })
             : view ? t({ ar: 'أنت متّصل بالصف', en: 'Connected to your class' }) : t({ ar: 'عم نتّصل بالصف', en: 'Connecting to your class' })}
         </div>}
+        {(!online || waiting > 0) && <Notice tone="warn"><span role="status">{waiting > 0
+          ? t({ ar: `بدون اتصال: جوابك انحفظ على جهازك وبينبعت لحاله لما يرجع الاتصال (${waiting.toLocaleString('ar-EG')} بالانتظار). لا تضغط مرة تانية.`, en: `Offline: your answer is saved on this device and will be sent by itself when the connection returns (${waiting} waiting). No need to press again.` })
+          : t({ ar: 'بدون اتصال هلأ. أي جواب بتبعته بينحفظ على جهازك وبينبعت لما يرجع الاتصال.', en: 'You are offline. Any answer you send is saved on this device and goes out when the connection returns.' })}</span></Notice>}
         {problem && <Notice tone="warn">{poll.error && !fatal && !actionError ? t({ ar: 'تحديث الصف متوقّف مؤقتاً.', en: 'Classroom updates are temporarily paused.' }) : t(ROOM_MESSAGES[problem])}{poll.error && !fatal && <button type="button" className="btn btn-secondary ms-2" onClick={poll.refresh}>{t({ ar: 'أعد الاتصال', en: 'Reconnect' })}</button>}</Notice>}
         {fatal ? <button type="button" className="btn btn-secondary self-start" onClick={onLeave}>{t({ ar: 'ارجع للانضمام', en: 'Back to joining' })}</button>
           : view && pack ? <>
