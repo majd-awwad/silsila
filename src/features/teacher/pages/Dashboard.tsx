@@ -141,11 +141,12 @@ export function Dashboard() {
       <section className="live-dashboard-hero">
         <div className="stack !gap-2">
           <span className="eyebrow">{t({ ar: 'مساحة المعلّم', en: 'Teacher workspace' })}</span>
-          <h1 className="title">{t({ ar: 'ماذا يفكّر صفّك؟', en: 'How is your class thinking?' })}</h1>
-          <p>{t({ ar: 'اجمع تفسيرات المتعلّمين، واختر تجربة تميّز بين أفكارهم، ثم راجع الأدلة لتخطّط للمتابعة.', en: 'Collect learners’ explanations, choose an experiment that distinguishes their ideas, and use the evidence to plan follow-up.' })}</p>
+          <h1 className="title">{t({ ar: 'بدك تتحقق من فهم طلابك، ولا تنظّم حصة اكتشاف؟', en: 'Do you want to check what your learners understand, or run a discovery lesson?' })}</h1>
+          <p>{t({ ar: 'التحقّق السريع (٥–١٠ دقائق) بيوصلك لقرار: شو تعيد تشرح ولمين. وحصة الاكتشاف بتختار تجربة تميّز بين أفكارهم. تقدر تبدأ بالتحقّق وتكمّل للاكتشاف من نفس الغرفة.', en: 'A quick check (5–10 minutes) ends in a decision: what to explain again and for whom. A discovery lesson picks an experiment that tells their ideas apart. You can start with the check and continue to discovery in the same room.' })}</p>
         </div>
         <div className="row">
-          <a className="btn btn-warm btn-lg" href={href('/teacher/new')}><Icon name="plus" />{t({ ar: 'ابدأ حصة اكتشاف', en: 'Start a discovery lesson' })}</a>
+          <a className="btn btn-warm btn-lg" href={href('/teacher/quick')}><Icon name="check" />{t({ ar: 'أتحقق من الفهم (سريع)', en: 'Check understanding (quick)' })}</a>
+          <a className="btn btn-primary btn-lg" href={href('/teacher/new')}><Icon name="plus" />{t({ ar: 'أنظّم حصة اكتشاف', en: 'Plan a discovery lesson' })}</a>
           <button type="button" className="btn btn-secondary" onClick={openSample}><Icon name="eye" />{t({ ar: 'استعرض صفاً تجريبياً', en: 'Explore a sample classroom' })}</button>
         </div>
       </section>

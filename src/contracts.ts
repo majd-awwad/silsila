@@ -113,6 +113,14 @@ export const LearnerEvent = z.discriminatedUnion('type', [
   z.object({ type: z.literal('quiz'), at, kind: z.enum(['pre', 'post']), answers: z.array(z.number()), score: z.number(), total: z.number() }),
   /** Real World Bridge: what they saw with physical materials */
   z.object({ type: z.literal('physical'), at, experimentId: z.string(), observation: z.string(), matched: z.boolean().nullable() }),
+  /**
+   * The teacher's correction of the automatic classification of the learner's starting explanation. The automatic result
+   * stays on the explain event; readers apply this one instead while it is newer than that explanation.
+   */
+  z.object({
+    type: z.literal('review'), at, outcome: z.enum(['correct', 'partial', 'idea', 'unclear']), ideaId: z.string().max(40).optional(),
+    auto: z.object({ status: DiagnosisStatus, ideas: z.array(z.string()) }),
+  }),
 ]);
 export type LearnerEvent = z.infer<typeof LearnerEvent>;
 export type EventOf<T extends LearnerEvent['type']> = Extract<LearnerEvent, { type: T }>;
@@ -226,6 +234,8 @@ export const RoomSettings = z.object({
   supervision: z.boolean(),
   objective: z.string().nullable(),
   mode: ExperimentMode.optional(),
+  /** quick = a 5–10 minute understanding check that ends in a decision; discovery (default) = the full lesson */
+  kind: z.enum(['quick', 'discovery']).optional(),
   accessibility: z.array(z.enum(['visual', 'hearing', 'reading', 'motor'])).max(4).optional(),
 });
 export type RoomSettings = z.infer<typeof RoomSettings>;
@@ -258,6 +268,8 @@ export const TeacherOp = z.discriminatedUnion('type', [
   z.object({ type: z.literal('choose'), experimentId: z.string(), source: z.enum(['recommended', 'manual']).optional(), expectedPhase: Phase.optional() }),
   z.object({ type: z.literal('reject'), experimentId: z.string(), expectedPhase: Phase.optional() }),
   z.object({ type: z.literal('remove'), participantId: z.string() }),
+  /** correct the automatic classification of one learner's starting explanation (kept next to the original) */
+  z.object({ type: z.literal('review'), participantId: z.string(), outcome: z.enum(['correct', 'partial', 'idea', 'unclear']), ideaId: z.string().max(40).optional() }),
   z.object({ type: z.literal('close') }),
 ]);
 export type TeacherOp = z.infer<typeof TeacherOp>;

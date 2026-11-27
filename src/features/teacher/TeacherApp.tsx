@@ -17,6 +17,7 @@ import { buildReport, reportCSV, reportFileName, reportJSON } from './logic/repo
 import { Dashboard } from './pages/Dashboard';
 import { Library } from './pages/Library';
 import { NewSession } from './pages/NewSession';
+import { QuickCheck } from './pages/QuickCheck';
 import { Learners, LessonStudio, ActivityTab } from './pages/Tools';
 import { ChangeTab } from './room/ChangeTab';
 import { GapsTab } from './room/GapsTab';
@@ -25,6 +26,7 @@ import { Counters, JoinPanel } from './room/JoinPanel';
 import { LearnersTab } from './room/LearnersTab';
 import { MapTab } from './room/MapTab';
 import { PlanTab } from './room/PlanTab';
+import { QuickDecision } from './room/QuickDecision';
 import { NextAction, Stepper } from './room/Stepper';
 import { TestTab } from './room/TestTab';
 
@@ -61,6 +63,8 @@ function ControlRoom({ code, report }: { code: string; report: boolean }) {
   const Panel = panels[selected];
   const showPanel = tab !== null || !['lobby', 'explain'].includes(view.meta.phase);
   const readOnly = view.meta.closed || Date.now() > view.meta.expiresAt;
+  // a quick check keeps its short path until the teacher chooses to continue to a full discovery lesson
+  const quickNow = view.meta.settings.kind === 'quick' && ['lobby', 'explain', 'map'].includes(view.meta.phase);
   const act = async (op: TeacherOp) => {
     if (inFlight.current || readOnly) return false;
     inFlight.current = true;
@@ -118,8 +122,10 @@ function ControlRoom({ code, report }: { code: string; report: boolean }) {
         <a className="btn btn-secondary" href={href(`/screen/${code}`)} target="_blank" rel="noreferrer"><Icon name="screen" />{t({ ar: 'افتح شاشة العرض', en: 'Open presentation screen' })}</a>} />
       {(actionError ?? error) && <RoomProblem error={(actionError ?? error)!} />}
       {readOnly && <Notice>{t({ ar: 'انتهت الحصة. التقارير لسه متاحة.', en: 'Class has ended. Reports are still available.' })}</Notice>}
-      <Stepper phase={view.meta.phase} />
-      {!readOnly && <NextAction key={view.meta.phase} meta={view.meta} counts={counts} busy={busy || !!error} act={act} />}
+      <Stepper phase={view.meta.phase} quick={quickNow} />
+      {!readOnly && (quickNow && view.meta.phase === 'map'
+        ? <QuickDecision pack={pack} meta={view.meta} records={records} busy={busy || !!error} act={act} />
+        : <NextAction key={view.meta.phase} meta={view.meta} counts={counts} busy={busy || !!error} act={act} />)}
       {!readOnly && view.meta.phase === 'lobby' && <JoinPanel code={code} roster={view.participants} />}
       {tab && <button className="btn btn-secondary self-start" onClick={() => setTab(null)}>{t({ ar: 'العودة إلى نشاط المرحلة', en: 'Back to the stage activity' })}</button>}
       {showPanel && <section className="live-panel" tabIndex={-1} ref={panelRef} aria-label={t(labels[selected])}>
@@ -147,6 +153,7 @@ export function TeacherApp({ path = [] }: { path?: string[] }) {
   const [page, code, subPage] = path;
   switch (page) {
     case 'new': return <NewSession />;
+    case 'quick': return <QuickCheck />;
     case 'library': return <Library packId={code} />;
     case 'learners': return <Learners />;
     case 'studio': return <LessonStudio />;

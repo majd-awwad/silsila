@@ -12,12 +12,13 @@ import { ROOM_ERROR } from '../logic/labels';
 import '../teacher.css';
 import '../../classroom.css';
 
-export type TeacherSection = 'home' | 'library' | 'new' | 'learners' | 'studio' | 'room';
+export type TeacherSection = 'home' | 'library' | 'new' | 'quick' | 'learners' | 'studio' | 'room';
 
 export function TeacherShell({ active, children, actions }: { active: TeacherSection; children: ReactNode; actions?: ReactNode }) {
   const nav: NavItem[] = [
     { to: '/teacher', label: { ar: 'اللوحة', en: 'Dashboard' }, active: active === 'home' },
     { to: '/teacher/library', label: { ar: 'مكتبة المفاهيم', en: 'Concept library' }, active: active === 'library' },
+    { to: '/teacher/quick', label: { ar: 'تحقّق سريع', en: 'Quick check' }, active: active === 'quick' },
     { to: '/teacher/new', label: { ar: 'حصة جديدة', en: 'New session' }, active: active === 'new' },
     { to: '/teacher/learners', label: { ar: 'المتعلّمين', en: 'Learners' }, active: active === 'learners' },
     { to: '/teacher/studio', label: { ar: 'استوديو الدروس', en: 'Lesson studio' }, active: active === 'studio' },

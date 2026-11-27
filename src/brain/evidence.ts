@@ -9,7 +9,7 @@ import type { ChainId, Lang, LearnerRecord } from '../contracts';
 import { CHAIN_IDS } from '../contracts';
 import type { ConceptPack } from '../packs/types';
 import { correctIdeaId } from './normalise';
-import { eventsOf } from './records';
+import { eventsOf, initialDiagnosis } from './records';
 import { outcomeMatches } from './world';
 import { experimentById } from './world';
 
@@ -112,8 +112,8 @@ export interface Gap {
  * verification question fails, and counts as recovered only when the recheck succeeds.
  */
 export function gapsOf(pack: ConceptPack, record: LearnerRecord): Gap[] {
-  const explained = eventsOf(record, 'explain').filter((e) => e.phase !== 'revise');
-  const first = explained.at(-1)?.diagnosis;
+  // the starting explanation, with the teacher's correction when there is one
+  const first = initialDiagnosis(record);
   return pack.prerequisites.map((p) => {
     const because: string[] = [];
     if (first) {

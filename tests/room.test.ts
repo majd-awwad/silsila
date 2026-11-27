@@ -273,3 +273,40 @@ describe('classroom edge cases', () => {
     expect(r.ok).toBe(true);
   });
 });
+
+describe('teacher review of a classification', () => {
+  const pack = getPack('condensation');
+  const [a, b] = wrongIdeas(pack);
+  const groupsOfRoom = (d: RoomData) => (teacherView(d), screenView(pack, goto(pack, d, 'map')).agg.groups ?? []);
+
+  it('moves the learner to another group in every count and keeps the automatic result next to the decision', () => {
+    let d = goto(pack, classroom(pack), 'explain');
+    d = explain(pack, d, 1, a);
+    d = explain(pack, d, 2, a);
+    d = teach(pack, d, { type: 'review', participantId: 'pid-secret-2', outcome: 'idea', ideaId: b });
+    const person = d.participants.find((p) => p.id === 'pid-secret-2')!;
+    // the original explanation event is untouched
+    expect(eventsOf(person.record, 'explain')[0].diagnosis.ideas.map((i) => i.id)).toEqual([a]);
+    expect(eventsOf(person.record, 'review')[0]).toMatchObject({ outcome: 'idea', ideaId: b, auto: { status: 'misconception', ideas: [a] } });
+    const keys = groupsOfRoom(d).map((g) => [g.key, g.count]);
+    expect(keys).toEqual(expect.arrayContaining([[a, 1], [b, 1]]));
+  });
+
+  it('can mark an explanation unclear, and rejects an unknown idea or a learner who has not explained', () => {
+    let d = goto(pack, classroom(pack), 'explain');
+    d = explain(pack, d, 1, a);
+    d = teach(pack, d, { type: 'review', participantId: 'pid-secret-1', outcome: 'unclear' });
+    expect(groupsOfRoom(d).map((g) => g.key)).toContain('unclear');
+    expect(teacherOp(pack, d, { type: 'review', participantId: 'pid-secret-1', outcome: 'idea', ideaId: 'no_such_idea' }).ok).toBe(false);
+    expect(teacherOp(pack, d, { type: 'review', participantId: 'pid-secret-3', outcome: 'unclear' }).ok).toBe(false);
+  });
+
+  it('is dropped when the learner later writes a newer starting explanation', () => {
+    let d = goto(pack, classroom(pack), 'explain');
+    d = explain(pack, d, 1, null, 'something vague');
+    d = teach(pack, d, { type: 'review', participantId: 'pid-secret-1', outcome: 'idea', ideaId: a });
+    d = explain(pack, d, 1, b, 'a new and clearer explanation');
+    expect(groupsOfRoom(d).map((g) => g.key)).toContain(b);
+    expect(groupsOfRoom(d).map((g) => g.key)).not.toContain(a);
+  });
+});

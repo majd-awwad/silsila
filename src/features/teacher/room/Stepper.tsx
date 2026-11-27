@@ -14,11 +14,16 @@ const stages: L[] = [
 ];
 const stageOf: Record<Phase, number> = { lobby: 1, explain: 2, map: 2, recommend: 3, approve: 3, predict: 4, reveal: 4, experiment: 4, observe: 4, discuss: 4, revise: 4, transfer: 5, insight: 5 };
 
-export function Stepper({ phase }: { phase?: Phase }) {
+const quickStages: L[] = [
+  { ar: 'فتح الصف', en: 'Open the room' }, { ar: 'الانضمام', en: 'Join' }, { ar: 'شرح الطلاب', en: 'Learners explain' }, { ar: 'القرار', en: 'Decision' },
+];
+const quickAt: Partial<Record<Phase, number>> = { lobby: 1, explain: 2, map: 3 };
+
+export function Stepper({ phase, quick = false }: { phase?: Phase; quick?: boolean }) {
   const { t, n } = useI18n();
-  const at = phase ? stageOf[phase] : 0;
-  return <ol className="live-steps" aria-label={t({ ar: 'مراحل الحصة', en: 'Classroom stages' })}>
-    {stages.map((label, i) => <li key={label.en} className={i < at ? 'is-done' : i === at ? 'is-now' : ''} aria-current={i === at ? 'step' : undefined}>
+  const at = phase ? (quick ? quickAt[phase] ?? 3 : stageOf[phase]) : 0;
+  return <ol className="live-steps" aria-label={t({ ar: 'مراحل الحصة', en: 'Classroom stages' })} style={quick ? { gridTemplateColumns: 'repeat(4,minmax(0,1fr))' } : undefined}>
+    {(quick ? quickStages : stages).map((label, i) => <li key={label.en} className={i < at ? 'is-done' : i === at ? 'is-now' : ''} aria-current={i === at ? 'step' : undefined}>
       <span aria-hidden="true">{i < at ? <Icon name="check" size={15} /> : n(i + 1)}</span>{t(label)}
     </li>)}
   </ol>;

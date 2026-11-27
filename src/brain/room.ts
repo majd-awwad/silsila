@@ -15,7 +15,8 @@ import { PHASES } from '../contracts';
 import type { ConceptPack } from '../packs/types';
 import { gapsOf } from './evidence';
 import { plan, rejectReasons } from './planner';
-import { addEvent, eventsOf, groupKey, hypothesesOf, initialDiagnosis, lastEvent, newRecord, revisedDiagnosis } from './records';
+import { correctIdeaId } from './normalise';
+import { addEvent, autoInitialDiagnosis, eventsOf, groupKey, hypothesesOf, initialDiagnosis, lastEvent, newRecord, revisedDiagnosis } from './records';
 import { compare, experimentById, experimentConditions } from './world';
 
 export interface RoomData { meta: RoomMeta; participants: RoomParticipant[] }
@@ -217,6 +218,15 @@ export function teacherOp(pack: ConceptPack, data: RoomData, op: TeacherOp, now 
       return ok({ ...data, meta: { ...meta, rejected: [...new Set([...meta.rejected, op.experimentId])], experimentId: meta.experimentId === op.experimentId ? null : meta.experimentId, phaseAt: now } });
     case 'remove':
       return ok({ ...data, participants: data.participants.filter((p) => p.id !== op.participantId) });
+    case 'review': {
+      const person = data.participants.find((p) => p.id === op.participantId);
+      const auto = person && autoInitialDiagnosis(person.record);
+      if (!person || !auto) return fail('bad_request');
+      const correct = correctIdeaId(pack);
+      if (op.outcome === 'idea' && (!op.ideaId || !Object.hasOwn(pack.ideas, op.ideaId) || op.ideaId === correct)) return fail('bad_request');
+      const event = { type: 'review' as const, at: now, outcome: op.outcome, ...(op.outcome === 'idea' ? { ideaId: op.ideaId } : {}), auto: { status: auto.status, ideas: auto.ideas.map((i) => i.id) } };
+      return ok({ ...data, participants: data.participants.map((p) => (p.id === op.participantId ? { ...p, record: addEvent(p.record, event) } : p)) });
+    }
     case 'close':
       return ok({ ...data, meta: { ...meta, closed: true, phaseAt: now } });
   }

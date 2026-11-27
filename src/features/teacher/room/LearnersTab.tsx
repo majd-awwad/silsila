@@ -5,6 +5,7 @@ import { EmptyState, StatusChip } from '../../../ui/kit';
 import { Icon } from '../../../ui/icons';
 import { Boundary, ConfirmModal, SectionTitle, usePrintSheet } from '../components/ui';
 import { LearnerReport } from '../components/LearnerReport';
+import { ReviewPanel } from './ReviewPanel';
 import { learnerRow } from '../logic/learner';
 import type { RoomTabProps } from './types';
 
@@ -51,6 +52,7 @@ export function LearnersTab({ pack, view, records, act, busy, readOnly }: RoomTa
           )}><Icon name="print" size={16} />{t({ ar: 'اطبعوا', en: 'Print' })}</button>
           {!readOnly && <button type="button" className="btn btn-danger btn-sm" onClick={() => setRemoving({ id: record.id, alias: record.alias })}><Icon name="trash" size={16} />{t({ ar: 'شيلوه من الصف', en: 'Remove' })}</button>}
         </div>
+        <ReviewPanel pack={pack} record={record} act={act} busy={busy} readOnly={readOnly} />
         <div className="card"><Boundary key={record.id} fallback={broken}><LearnerReport pack={pack} record={record} /></Boundary></div>
         {sheet}
         {remove}

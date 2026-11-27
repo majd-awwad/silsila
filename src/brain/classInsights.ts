@@ -9,7 +9,7 @@ import { RESOURCES } from '../packs/resources';
 import type { ResourceId } from '../packs/resources';
 import { ASSIST_LEVEL, gapsOf } from './evidence';
 import { correctIdeaId } from './normalise';
-import { eventsOf, groupKey, hypothesesOf, initialDiagnosis, revisedDiagnosis } from './records';
+import { eventsOf, groupKey, hypothesesOf, initialDiagnosis, latestDiagnosis, revisedDiagnosis } from './records';
 import { DEFAULT_CONSTRAINTS, plan } from './planner';
 
 export interface ClassSummary {
@@ -42,7 +42,7 @@ export function summarise(pack: ConceptPack, records: LearnerRecord[]): ClassSum
   const s: ClassSummary = { total: mine.length, explained: 0, correct: 0, partial: 0, unclear: 0, ideas: [], gaps: [], assisted: 0, revised: 0, movedToCorrect: 0, transferTried: 0, transferShown: 0 };
   for (const r of mine) {
     const first = initialDiagnosis(r);
-    const last = eventsOf(r, 'explain').at(-1)?.diagnosis ?? null;
+    const last = latestDiagnosis(r);
     if (first) s.explained++;
     if (last?.status === 'correct') s.correct++;
     else if (last?.status === 'partial') s.partial++;
@@ -102,7 +102,7 @@ export function interventionGroups(pack: ConceptPack, records: LearnerRecord[]):
   };
   for (const r of mine) {
     const gap = gapsOf(pack, r).find((g) => g.status === 'confirmed' || g.status === 'persisting');
-    const latest = eventsOf(r, 'explain').at(-1)!.diagnosis;
+    const latest = latestDiagnosis(r)!;
     if (gap) {
       const p = pack.prerequisites.find((x) => x.id === gap.id)!;
       put(`gap:${p.id}`, () => ({ kind: 'gap', title: { ar: `مراجعة أساس: ${p.label.ar}`, en: `Foundation: ${p.label.en}` }, move: p.remedy.title, experimentId: null }), r.id);
