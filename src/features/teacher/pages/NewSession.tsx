@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import type { Lang, RoomError } from '../../../contracts';
+import type { ExperimentMode, Lang, RoomError, RoomSettings } from '../../../contracts';
 import { roomApi } from '../../../brain/client';
 import { SAMPLE_CODE } from '../../../brain/sample';
 import { useI18n } from '../../../i18n';
@@ -18,6 +18,8 @@ import { Icon } from '../../../ui/icons';
 import { PageHead, RoomProblem, TeacherShell } from '../components/ui';
 import { REJECT_LABEL, SUBJECT_LABEL } from '../logic/labels';
 import { feasibility } from '../logic/planView';
+import { PhenomenonPreview } from '../../../ui/PhenomenonPreview';
+import { Stepper } from '../room/Stepper';
 import { resetSample } from '../logic/sampleRoom';
 
 export function NewSession() {
@@ -29,10 +31,24 @@ export function NewSession() {
   const pack = PACKS[packId] ?? wanted;
   const [grade, setGrade] = useState(wanted.grades[0]);
   const [minutes, setMinutes] = useState(45);
-  const [resources, setResources] = useState<ResourceId[]>(() => [...RESOURCE_IDS]);
-  const [supervision, setSupervision] = useState(true);
+  const [resources, setResources] = useState<ResourceId[]>([]);
+  const [supervision, setSupervision] = useState(false);
   const [objective, setObjective] = useState('');
   const [learnerLang, setLearnerLang] = useState<Lang>(lang);
+  const [step, setStep] = useState(0);
+  const [mode, setMode] = useState<ExperimentMode>('digital');
+  const [accessibility, setAccessibility] = useState<NonNullable<RoomSettings['accessibility']>>([]);
+  const modes = [
+    { id: 'digital', label: t({ ar: 'محاكاة رقمية', en: 'Digital simulation' }) },
+    { id: 'physical', label: t({ ar: 'تجربة صفّية مادية', en: 'Physical experiment' }) },
+    { id: 'hybrid', label: t({ ar: 'تجربة مادية ومحاكاة', en: 'Physical and digital' }) },
+  ] as const;
+  const accessOptions = [
+    ['visual', { ar: 'وصف بصري أو تكبير', en: 'Visual descriptions or magnification' }],
+    ['hearing', { ar: 'تعليمات مكتوبة', en: 'Written instructions' }],
+    ['reading', { ar: 'دعم القراءة', en: 'Reading support' }],
+    ['motor', { ar: 'دعم الحركة أو الإدخال', en: 'Motor or input support' }],
+  ] as const;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<RoomError | null>(null);
   const [sampleFailed, setSampleFailed] = useState(false);
@@ -52,7 +68,7 @@ export function NewSession() {
   };
 
   const validMinutes = Number.isInteger(minutes) && minutes >= 5 && minutes <= 120;
-  const allowed = feasibility(pack, { minutes: validMinutes ? minutes : 45, resources, grade, supervision, objective: objective || null });
+  const allowed = feasibility(pack, { minutes: validMinutes ? minutes : 45, resources, grade, supervision, mode, objective: objective || null });
   const feasible = allowed.filter((a) => !a.reasons.length).length;
   // only materials that some experiment of this lesson uses change the plan
   const used = new Set(pack.experiments.flatMap((x) => x.materials));
@@ -61,9 +77,10 @@ export function NewSession() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (busy || !validMinutes) return;
+    if (step < 2) { setStep(step + 1); return; }
     setBusy(true);
     setError(null);
-    const r = await roomApi.create({ pack: pack.id, lang: learnerLang, grade, minutes, resources, supervision, objective: objective || null });
+    const r = await roomApi.create({ pack: pack.id, lang: learnerLang, grade, minutes, resources, supervision, mode, accessibility, objective: objective || null });
     setBusy(false);
     if (r.ok) navigate(`/teacher/room/${r.data.code}`);
     else setError(r.error);
@@ -87,8 +104,15 @@ export function NewSession() {
         title={t({ ar: 'حصة جديدة', en: 'New session' })}
         lead={t({ ar: 'حدّدوا الدرس وشروط صفّكم. اقتراح التجربة بيلتزم فيها.', en: 'Choose the lesson and your classroom constraints. The experiment suggestion respects them.' })}
       />
-      <div className="tc-split">
+      <Stepper />
+      <div className="tc-split live-preparation">
         <form className="card stack !gap-5" onSubmit={submit}>
+          <h2 className="subtitle">{n(step + 1)} / {n(3)} · {[
+            t({ ar: 'الدرس وأهداف التعلّم', en: 'Lesson and learning goals' }),
+            t({ ar: 'طريقة التنفيذ والتيسيرات', en: 'Materials and accessibility' }),
+            t({ ar: 'مراجعة قبل فتح الحصة', en: 'Review before opening' }),
+          ][step]}</h2>
+          {step === 0 && <>
           <div className="field">
             <span className="label">{t({ ar: 'المادة', en: 'Subject' })}</span>
             <Segmented label={t({ ar: 'المادة', en: 'Subject' })} value={subject} onChange={chooseSubject}
@@ -129,6 +153,19 @@ export function NewSession() {
               {pack.objectives.map((o) => <option key={o.id} value={o.id}>{t(o.text)}</option>)}
             </select>
           </div>
+          </>}
+          {step === 1 && <>
+            <Segmented label={t({ ar: 'طريقة تنفيذ التجربة', en: 'Experiment mode' })} value={mode} onChange={setMode} options={[...modes]} />
+            <p className="help">{mode === 'digital' ? t({ ar: 'تعمل المحاكاة دون مواد مادية. يعرض الصف ناتج النموذج العلمي عند الكشف.', en: 'Simulations require no physical materials and reveal the reference model when the teacher runs the test.' })
+              : t({ ar: 'يُراجع المخطّط الوقت والمواد والسلامة. تُقارن ملاحظات الصف المادية بناتج المحاكاة أثناء النقاش.', en: 'The planner checks time, materials, and safety. Discuss physical observations alongside the model result.' })}</p>
+            <fieldset className="tc-fieldset">
+              <legend>{t({ ar: 'تيسيرات الوصول', en: 'Accessibility needs' })}</legend>
+              <div className="tc-checks">{accessOptions.map(([id, label]) => <label className="check" key={id}>
+                <input type="checkbox" checked={accessibility.includes(id)} onChange={() => setAccessibility((previous) => previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id])} />
+                {t(label)}
+              </label>)}</div>
+            </fieldset>
+            {mode !== 'digital' && <>
           <fieldset className="tc-fieldset">
             <legend>{t({ ar: 'المواد المتوفّرة', en: 'Available materials' })}</legend>
             <div className="row">
@@ -147,6 +184,17 @@ export function NewSession() {
             <span>{t({ ar: 'في شخص بالغ بيشرف على التجربة', en: 'An adult can supervise the experiment' })}</span>
           </label>
 
+            </>}
+          </>}
+          {step === 2 && <dl className="live-summary">
+            <div><dt>{t({ ar: 'الدرس', en: 'Lesson' })}</dt><dd>{t(pack.title)}</dd></div>
+            <div><dt>{t({ ar: 'الصف والمدة', en: 'Grade and duration' })}</dt><dd>{n(grade)} · {n(minutes)} {t({ ar: 'دقيقة', en: 'min' })}</dd></div>
+            <div><dt>{t({ ar: 'لغة الطلاب', en: 'Student language' })}</dt><dd>{learnerLang === 'ar' ? 'العربية' : 'English'}</dd></div>
+            <div><dt>{t({ ar: 'التجربة', en: 'Experiment' })}</dt><dd>{modes.find((item) => item.id === mode)?.label}</dd></div>
+            <div><dt>{t({ ar: 'هدف التعلّم', en: 'Learning goal' })}</dt><dd>{objective ? t(pack.objectives.find((item) => item.id === objective)!.text) : t({ ar: 'الهدف العام للدرس', en: 'General lesson objective' })}</dd></div>
+            <div><dt>{t({ ar: 'تيسيرات الوصول', en: 'Accessibility needs' })}</dt><dd>{accessOptions.filter(([id]) => accessibility.includes(id)).map(([, label]) => t(label)).join(' · ') || '—'}</dd></div>
+            {mode !== 'digital' && <div><dt>{t({ ar: 'المواد والإشراف', en: 'Materials and supervision' })}</dt><dd>{RESOURCE_IDS.filter((id) => used.has(id) && resources.includes(id)).map((id) => t(RESOURCES[id])).join(' · ') || '—'}<br />{supervision ? t({ ar: 'إشراف بالغ متاح', en: 'Adult supervision available' }) : t({ ar: 'إشراف بالغ غير متاح', en: 'Adult supervision unavailable' })}</dd></div>}
+          </dl>}
           {error && (
             <div className="stack !gap-2">
               <RoomProblem error={error} />
@@ -159,16 +207,20 @@ export function NewSession() {
             </div>
           )}
           {sampleFailed && <Notice tone="error">{t({ ar: 'ما قدرنا نجهّز الصف التجريبي لهالدرس.', en: 'The sample classroom could not be prepared for this lesson.' })}</Notice>}
+          <div className="row live-form-actions">
+          {step > 0 && <button className="btn btn-secondary" type="button" disabled={busy} onClick={() => setStep(step - 1)}>{t({ ar: 'السابق', en: 'Back' })}</button>}
           <button type="submit" className="btn btn-primary btn-lg" disabled={busy || !validMinutes}>
             {busy ? <span className="spinner" aria-hidden="true" /> : <Icon name="qr" />}
-            {busy ? t({ ar: 'عم نفتح الصف…', en: 'Opening the room…' }) : t({ ar: 'افتحوا الصف', en: 'Create the room' })}
+            {busy ? t({ ar: 'جارٍ فتح الصف…', en: 'Opening the room…' }) : step < 2 ? t({ ar: 'التالي', en: 'Continue' }) : t({ ar: 'افتح الصف', en: 'Create the room' })}
           </button>
+          </div>
         </form>
 
         <aside className="card stack !gap-3 tc-sticky" aria-live="polite">
-          <h2 className="subtitle">{t({ ar: 'شو بتسمح شروطكم', en: 'What your constraints allow' })}</h2>
+          <PhenomenonPreview pack={pack} />
+          <h2 className="subtitle">{t({ ar: 'التجارب المتاحة', en: 'Eligible experiments' })}</h2>
           <p>{t({ ar: `${n(feasible)} من ${n(pack.experiments.length)} تجارب ممكنة.`, en: `${feasible} of ${pack.experiments.length} experiments are feasible.` })}</p>
-          <ul className="tc-plain stack !gap-2">
+          <details><summary className="link">{t({ ar: 'تفاصيل الأهلية', en: 'Eligibility details' })}</summary><ul className="tc-plain stack !gap-2">
             {pack.experiments.map((x) => {
               const a = allowed.find((y) => y.id === x.id)!;
               const ok = !a.reasons.length;
@@ -186,7 +238,7 @@ export function NewSession() {
                 </li>
               );
             })}
-          </ul>
+          </ul></details>
           {feasible === 0 && <Notice tone="warn">{t({ ar: 'بتقدروا تفتحوا الصف، بس ما رح يكون في تجربة مقترحة بهالشروط.', en: 'You can still open the room, but no experiment can be suggested under these constraints.' })}</Notice>}
         </aside>
       </div>

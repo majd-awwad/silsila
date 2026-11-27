@@ -55,7 +55,7 @@ export function evidenceOf(pack: ConceptPack, record: LearnerRecord, until = Inf
       const x = experimentById(pack, e.experimentId);
       for (const node of x?.targets ?? []) add(e.at, node, 'prediction', outcomeMatches(pack, e.predicted, e.real));
     } else if (e.type === 'quiz' && e.kind === 'post') {
-      pack.postTest.forEach((q, i) => { if (q.node && e.answers[i] !== undefined) add(e.at, q.node, 'quiz', e.answers[i] === q.correct); });
+      pack.postTest.forEach((q, i) => { if (q.node && e.answers[i] >= 0) add(e.at, q.node, 'quiz', e.answers[i] === q.correct); });
     }
   }
   return out.sort((a, b) => a.at - b.at);
@@ -156,7 +156,7 @@ export function replaySteps(pack: ConceptPack, record: LearnerRecord, lang: Lang
         out.push({
           kind: 'test', at: e.at, title: x?.name[lang] ?? t(lang, 'تجربة من تصميم المتعلّم', "The learner's own experiment"),
           body: broke ? t(lang, 'النتيجة غير اللي بتتوقّعه الفكرة.', 'The result differs from what the idea predicts.') : t(lang, 'الفكرة صمدت بهالتجربة.', 'The idea held in this test.'),
-          predicted: outcome(e.predicted), hypothesis: outcome(e.hypothesis), real: outcome(e.real), broke, quote: e.note || undefined,
+          predicted: outcome(e.predicted), hypothesis: outcome(e.hypothesis), real: outcome(e.real), broke, quote: [e.predictionReason, e.note].filter(Boolean).join(' · ') || undefined,
         });
         break;
       }

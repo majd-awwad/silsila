@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import { interventionGroups } from '../../../brain/classInsights';
+import { eventsOf } from '../../../brain/records';
 import { useI18n } from '../../../i18n';
 import { href } from '../../../router';
 import { EmptyState, Notice } from '../../../ui/kit';
@@ -111,6 +112,13 @@ export function GroupsTab({ pack, view, records }: RoomTabProps) {
               </div>
               {experiment && <p className="help"><Icon name="flask" size={14} className="inline me-1" />{t(experiment.name)}</p>}
               {g.members.length ? <ul className="tc-plain">{g.members.map((id) => member(id, g))}</ul> : <p className="muted text-[14px]">{t({ ar: 'فاضية. انقلوا متعلّمين إلها.', en: 'Empty. Move learners here.' })}</p>}
+              {!!g.members.length && <details><summary>{t({ ar: 'التفسيرات الداعمة', en: 'Supporting explanations' })}</summary>
+                {g.members.map((id) => {
+                  const record = records.find((item) => item.id === id);
+                  const explanation = record && eventsOf(record, 'explain').at(-1);
+                  return <blockquote className="tc-quote" key={id}><strong>{alias.get(id)}</strong><p dir="auto">{explanation?.text ?? t({ ar: 'لا يوجد شرح محفوظ.', en: 'No explanation recorded.' })}</p></blockquote>;
+                })}
+              </details>}
             </article>
           );
         })}

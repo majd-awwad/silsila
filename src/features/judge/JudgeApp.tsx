@@ -11,6 +11,7 @@ import { useI18n } from '../../i18n';
 import { PACK_LIST, getPack } from '../../packs';
 import { RESOURCE_IDS } from '../../packs/resources';
 import { absoluteLink, href } from '../../router';
+import { clearSoloDrafts } from '../student/storage';
 import { clearRecords } from '../../store/records';
 import { Icon } from '../../ui/icons';
 import { Notice, QR, Segmented, Shell } from '../../ui/kit';
@@ -79,6 +80,7 @@ export function JudgeApp(_: { path?: string[] }) {
   async function reset() {
     if (!confirm(t({ ar: 'نمسح جلسات الطلاب المحفوظة على هالجهاز ونرجّع الصف التجريبي وخطوات العرض؟ ما في تراجع.', en: 'Delete lessons saved on this device and reset the sample classroom and demo steps? This cannot be undone.' }))) return;
     await clearRecords().catch(() => {});
+    clearSoloDrafts();
     sampleStore.reset(packId, lang);
     setDone([]);
     try { localStorage.removeItem(DONE_KEY); sessionStorage.clear(); } catch { /* private mode */ }

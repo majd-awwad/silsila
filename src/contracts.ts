@@ -97,9 +97,10 @@ export const LearnerEvent = z.discriminatedUnion('type', [
     /** what the learner predicted, and what their idea predicts */
     predicted: z.string().nullable(), hypothesis: z.string().nullable(),
     note: z.string().default(''),
+    predictionReason: z.string().max(300).optional(),
   }),
   z.object({ type: z.literal('prereq'), at, prereqId: z.string(), questionId: z.string(), correct: z.boolean(), phase: z.enum(['verify', 'recheck']) }),
-  z.object({ type: z.literal('remedy'), at, prereqId: z.string() }),
+  z.object({ type: z.literal('remedy'), at, prereqId: z.string(), reflection: z.string().max(300).optional() }),
   /** scaffolding received: 1 reflection · 2 attention · 3 clue · 4 guided instruction · 5 ask the teacher */
   z.object({ type: z.literal('assist'), at, level: z.number().int().min(1).max(5) }),
   z.object({ type: z.literal('teach'), at, text: z.string(), caught: z.boolean(), steps: z.array(StepEvidence).length(3), source: z.enum(['ai', 'fallback']) }),
@@ -135,6 +136,7 @@ export type LearnerRecord = z.infer<typeof LearnerRecord>;
 /* ───────────────────────── experiment planner ───────────────────────── */
 
 export interface PlanConstraints {
+  mode?: ExperimentMode;
   /** lesson time left, minutes */
   minutes: number;
   /** available material ids; null = no restriction */
@@ -212,6 +214,9 @@ export const PHASES = [
 export const Phase = z.enum(PHASES);
 export type Phase = z.infer<typeof Phase>;
 
+export const ExperimentMode = z.enum(['digital', 'physical', 'hybrid']);
+export type ExperimentMode = z.infer<typeof ExperimentMode>;
+
 export const RoomSettings = z.object({
   pack: z.string(),
   lang: Lang,
@@ -220,6 +225,8 @@ export const RoomSettings = z.object({
   resources: z.array(z.string()).max(40),
   supervision: z.boolean(),
   objective: z.string().nullable(),
+  mode: ExperimentMode.optional(),
+  accessibility: z.array(z.enum(['visual', 'hearing', 'reading', 'motor'])).max(4).optional(),
 });
 export type RoomSettings = z.infer<typeof RoomSettings>;
 
@@ -232,6 +239,7 @@ export const RoomMeta = z.object({
   phaseAt: z.number(),
   /** the approved shared experiment */
   experimentId: z.string().nullable(),
+  approvalSource: z.enum(['recommended', 'manual']).optional(),
   /** experiments the teacher rejected */
   rejected: z.array(z.string()),
   /** experiments already run in this room, oldest first */
@@ -242,13 +250,13 @@ export const RoomMeta = z.object({
 });
 export type RoomMeta = z.infer<typeof RoomMeta>;
 
-export const RoomParticipant = z.object({ id: z.string(), alias: z.string(), joinedAt: z.number(), record: LearnerRecord });
+export const RoomParticipant = z.object({ id: z.string(), alias: z.string(), joinedAt: z.number(), lastSeenAt: z.number().optional(), record: LearnerRecord });
 export type RoomParticipant = z.infer<typeof RoomParticipant>;
 
 export const TeacherOp = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('phase'), phase: Phase }),
-  z.object({ type: z.literal('choose'), experimentId: z.string() }),
-  z.object({ type: z.literal('reject'), experimentId: z.string() }),
+  z.object({ type: z.literal('phase'), phase: Phase, expectedPhase: Phase.optional(), expectedExperiment: z.string().nullable().optional() }),
+  z.object({ type: z.literal('choose'), experimentId: z.string(), source: z.enum(['recommended', 'manual']).optional(), expectedPhase: Phase.optional() }),
+  z.object({ type: z.literal('reject'), experimentId: z.string(), expectedPhase: Phase.optional() }),
   z.object({ type: z.literal('remove'), participantId: z.string() }),
   z.object({ type: z.literal('close') }),
 ]);
@@ -309,7 +317,7 @@ export interface Aggregates {
   /** from the reveal phase */
   predictions: PredictionTally[] | null;
   /** from the observe phase */
-  result: { outcome: string; byGroup: { key: string; ideas: string[]; outcome: string; contradicted: boolean; count: number }[] } | null;
+  result: { outcome: string; byGroup: { key: string; ideas: string[]; outcome: string; contradicted: boolean; count: number; model: ChildModel }[] } | null;
   /** from the discuss/revise phases on */
   revisedGroups: HypothesisGroup[] | null;
   /** in the insight phase: how many moved between initial and revised groups */
@@ -358,6 +366,7 @@ export const ActivityRequest = z.object({
   classSize: z.number().int().min(1).max(60),
   resources: z.array(z.string()).max(40),
   accessibility: z.string().max(300),
+  objective: z.string().max(80).optional(),
   evidence: z.object({
     total: z.number().int().min(0).max(200),
     ideas: z.array(z.object({ id: z.string(), count: z.number().int().min(0).max(200) })).max(12),

@@ -11,11 +11,13 @@ import { PACKS } from '../../packs';
 import { href, navigate } from '../../router';
 import { LearningDNA, ReasonChain } from '../../ui/Evidence';
 import { ExperimentStage } from '../../ui/ExperimentStage';
+import { PhenomenonPreview } from '../../ui/PhenomenonPreview';
 import { Loading, Notice, SampleBanner, Shell } from '../../ui/kit';
 import { useNoorVoice } from '../../voice/useVoice';
 import { ChainProgress, GapCard, LockChoice, NoorSays, SpeakBox, Title, VoiceContext, VoiceToggle } from '../student/parts';
 import { Compare } from '../student/screens/Experiment';
 import { useRoomPoll } from '../teacher/hooks/useRoomPoll';
+import '../classroom.css';
 
 export function JoinApp({ code }: { code: string | null }) {
   return <JoinEntry key={code ?? ''} initial={code ?? ''} />;
@@ -69,7 +71,7 @@ function ClassLesson({ code, seat, onLeave }: { code: string; seat: Seat; onLeav
   useEffect(() => { setLang(seat.lang); }, [seat.lang, setLang]);
   const { view } = poll;
   const pack = view && PACKS[view.meta.settings.pack];
-  const problem = actionError ?? poll.error;
+  const problem = poll.error ?? actionError;
   const fatal = poll.error && FATAL_ERRORS.includes(poll.error);
   const send = async (op: StudentOp) => {
     if (running.current || !view || !pack || !canSend(pack, view, op)) return false;
@@ -95,13 +97,17 @@ function ClassLesson({ code, seat, onLeave }: { code: string; seat: Seat; onLeav
   };
   return <VoiceContext.Provider value={voice}>
     <Shell narrow actions={<VoiceToggle />}>
-      <div className="stack">
+      <div className="live-student">
         {view?.meta.sample && <SampleBanner />}
-        {problem && <Notice tone="warn">{t(ROOM_MESSAGES[problem])}</Notice>}
+        {!fatal && <div className={`live-student-status${poll.error ? ' is-offline' : ''}`} role="status">
+          {poll.error ? t({ ar: 'عم نحاول نرجع نتّصل بالصف', en: 'Reconnecting to your class' })
+            : view ? t({ ar: 'أنت متّصل بالصف', en: 'Connected to your class' }) : t({ ar: 'عم نتّصل بالصف', en: 'Connecting to your class' })}
+        </div>}
+        {problem && <Notice tone="warn">{poll.error && !fatal && !actionError ? t({ ar: 'تحديث الصف متوقّف مؤقتاً.', en: 'Classroom updates are temporarily paused.' }) : t(ROOM_MESSAGES[problem])}{poll.error && !fatal && <button type="button" className="btn btn-secondary ms-2" onClick={poll.refresh}>{t({ ar: 'أعد الاتصال', en: 'Reconnect' })}</button>}</Notice>}
         {fatal ? <button type="button" className="btn btn-secondary self-start" onClick={onLeave}>{t({ ar: 'ارجع للانضمام', en: 'Back to joining' })}</button>
           : view && pack ? <>
-            <ChainProgress steps={CLASS_STEPS.map((step) => step.label)} current={classStep(view.meta.phase)} />
-            <ClassTaskView key={view.meta.phase + ':' + view.meta.experimentId} view={view} send={send} busy={busy} />
+            {view.meta.phase !== 'lobby' && <ChainProgress steps={CLASS_STEPS.map((step) => step.label)} current={classStep(view.meta.phase)} />}
+            <ClassTaskView key={view.meta.phase + ':' + view.meta.experimentId} view={view} send={send} busy={busy || !!poll.error} />
           </> : !problem && <Loading />}
       </div>
     </Shell>
@@ -125,21 +131,27 @@ function ClassTaskView({ view, send, busy }: { view: StudentRoomView; send: (op:
     {title({ ar: 'الحصّة خلصت', en: 'Class ended' })}
     <a className="btn btn-secondary self-start" href={href('/learn')}>{t({ ar: 'اكتشف درس لحالك', en: 'Explore an individual lesson' })}</a>
   </>;
-  if (task === 'lobby' || task === 'waiting') return <>
-    {title({ ar: 'جاهز للخطوة الجاية؟', en: 'Ready for the next step?' })}
-    <p><bdi>{me.alias}</bdi> · <bdi>{meta.code}</bdi></p>{waiting}
-  </>;
+  if (task === 'lobby') return <section className="live-student-lobby">
+    {title({ ar: 'وصلت عالصف!', en: 'You’re in!' })}
+    <NoorSays mood="encouraging" auto={false} hero text={t({ ar: 'أنا نور! أول ما المعلّم يبدأ، رح تشوف المهمّة هون لحالها.', en: 'I’m Noor! When your teacher starts, your first task will appear right here.' })} />
+    <p><bdi>{me.alias}</bdi> · <bdi>{meta.code}</bdi></p>
+  </section>;
+  if (task === 'waiting') return <>{title({ ar: 'استنّى الخطوة الجاية', en: 'Wait for the next step' })}{waiting}</>;
   if (task === 'explain' || task === 'revise') {
     const op = task === 'explain' ? 'explain' : 'revise';
     const previous = eventsOf(record, 'explain').filter((event) => op === 'revise' ? event.phase === 'revise' : event.phase !== 'revise').at(-1);
+    const needsMore = !previous || ['insufficient', 'partial', 'contradictory'].includes(previous.diagnosis.status);
     return <>
       {title(op === 'explain' ? { ar: 'احكي فكرتك', en: 'Share your idea' } : { ar: 'اشرح من جديد', en: 'Explain again' })}
+      {op === 'explain' && !previous && <PhenomenonPreview pack={pack} />}
       <NoorSays text={previous?.diagnosis.noor ?? t(pack.question)} />
       {previous && <div className="card stack">
         <p dir="auto">{previous.text}</p>
         <ReasonChain steps={previous.diagnosis.chain} />
       </div>}
-      {canSend(pack, view, { type: op, text: '-' }) ? <SpeakBox label={t({ ar: 'شرحي', en: 'My explanation' })} busy={busy} onSubmit={(text) => send({ type: op, text })} /> : waiting}
+      {previous && <Notice>{t({ ar: 'وصل شرحك. المهمّة الجاية رح تظهر هون.', en: 'Your explanation is saved. The next task will appear here.' })}</Notice>}
+      {canSend(pack, view, { type: op, text: '-' }) && (needsMore ? <SpeakBox label={t({ ar: 'شرحي', en: 'My explanation' })} busy={busy} onSubmit={(text) => send({ type: op, text })} />
+        : <details><summary>{t({ ar: 'بدّي أضيف على شرحي', en: 'Add to my explanation' })}</summary><SpeakBox label={t({ ar: 'إضافة إلى شرحي', en: 'Addition to my explanation' })} busy={busy} onSubmit={(text) => send({ type: op, text })} /></details>)}
     </>;
   }
   if (task === 'gap') {
@@ -163,6 +175,7 @@ function ClassTaskView({ view, send, busy }: { view: StudentRoomView; send: (op:
     <ExperimentStage pack={pack} cond={experimentConditions(pack, test.id)} model={seen ? initialDiagnosis(record)?.model ?? null : null} revealed={!!agg.result} />
     {agg.predictions && <ul className="card">{agg.predictions.map((row) => <li key={row.outcome}>{t(pack.outcomes[row.outcome])} · {row.count}</li>)}</ul>}
     {seen && <Compare pack={pack} observation={seen} />}
+    {agg.result && <p className="help">{t({ ar: 'هاي نتيجة المحاكاة. إذا جرّبتوا بمواد حقيقية، اكتب شو لاحظت بنفسك.', en: 'This is the simulation result. If your class used real materials, describe what you actually saw.' })}</p>}
     {seen && canSend(pack, view, { type: 'observe', note: '' }) && <form className="card stack" onSubmit={(e) => { e.preventDefault(); void send({ type: 'observe', note }); }}>
       <label className="field"><span>{t({ ar: 'شو لاحظت؟', en: 'What did you observe?' })}</span><textarea className="textarea" rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} /></label>
       <button className="btn btn-primary self-start" disabled={busy || !note.trim() || note === seen.note}>{t({ ar: 'احفظ الملاحظة', en: 'Save observation' })}</button>

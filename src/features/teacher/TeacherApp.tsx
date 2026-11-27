@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { roomApi, teacherRooms } from '../../brain/client';
 import { aggregates } from '../../brain/room';
 import { SAMPLE_CODE } from '../../brain/sample';
@@ -8,7 +8,7 @@ import { PACKS } from '../../packs';
 import { href } from '../../router';
 import { Icon } from '../../ui/icons';
 import { EmptyState, Loading, Notice, SampleBanner, downloadFile } from '../../ui/kit';
-import { ConfirmModal, PageHead, RoomProblem, Tabs, TeacherShell } from './components/ui';
+import { ConfirmModal, PageHead, RoomProblem, TeacherShell } from './components/ui';
 import { useRoomPoll } from './hooks/useRoomPoll';
 import { boardKey, loadBoard } from './logic/groups';
 import { tabForPhase } from './logic/insight';
@@ -45,6 +45,8 @@ function ControlRoom({ code, report }: { code: string; report: boolean }) {
   const [actionError, setActionError] = useState<RoomError | null>(null);
   const [closing, setClosing] = useState(false);
   const inFlight = useRef(false);
+  const panelRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (tab) panelRef.current?.focus(); }, [tab]);
   const { view, error } = poll;
   const pack = view && PACKS[view.meta.settings.pack];
   const goBack = <a className="btn btn-secondary" href={href('/teacher')}>{t({ ar: 'لوحة المعلّم', en: 'Teacher dashboard' })}</a>;
@@ -57,6 +59,7 @@ function ControlRoom({ code, report }: { code: string; report: boolean }) {
   const records = view.participants.map((p) => p.record);
   const selected = tab ?? tabForPhase(view.meta.phase);
   const Panel = panels[selected];
+  const showPanel = tab !== null || !['lobby', 'explain'].includes(view.meta.phase);
   const readOnly = view.meta.closed || Date.now() > view.meta.expiresAt;
   const act = async (op: TeacherOp) => {
     if (inFlight.current || readOnly) return false;
@@ -111,20 +114,27 @@ function ControlRoom({ code, report }: { code: string; report: boolean }) {
   return <TeacherShell active="room">
     <div className="stack">
       {view.meta.sample && <SampleBanner />}
-      <PageHead eyebrow={<bdi>{code}</bdi>} title={t(pack.title)} lead={t(pack.question)} actions={<>
-        <a className="btn btn-secondary" href={href('/teacher/room/' + code + '/report')}><Icon name="print" />{t({ ar: 'التقرير', en: 'Report' })}</a>
-        {!readOnly && <button className="btn btn-ghost" disabled={busy} onClick={() => setClosing(true)}>{t({ ar: 'سكّر الصف', en: 'Close class' })}</button>}
-      </>} />
+      <PageHead eyebrow={<>{t({ ar: 'غرفة التحكّم الخاصة', en: 'Private control room' })} · <bdi>{code}</bdi></>} title={t(pack.title)} lead={t(pack.question)} actions={!readOnly &&
+        <a className="btn btn-secondary" href={href(`/screen/${code}`)} target="_blank" rel="noreferrer"><Icon name="screen" />{t({ ar: 'افتح شاشة العرض', en: 'Open presentation screen' })}</a>} />
       {(actionError ?? error) && <RoomProblem error={(actionError ?? error)!} />}
       {readOnly && <Notice>{t({ ar: 'انتهت الحصة. التقارير لسه متاحة.', en: 'Class has ended. Reports are still available.' })}</Notice>}
       <Stepper phase={view.meta.phase} />
-      {!readOnly && <JoinPanel code={code} />}
-      <Counters counts={counts} />
-      {!readOnly && <NextAction meta={view.meta} counts={counts} busy={busy} act={act} goTab={setTab} />}
-      <Tabs label={t({ ar: 'أدوات غرفة التحكّم', en: 'Control room tools' })} tabs={(Object.keys(labels) as RoomTab[]).map((id) => ({ id, label: t(labels[id]) }))} value={selected} onChange={setTab} />
-      <div id="tab-panel" role="tabpanel" aria-labelledby={'tab-' + selected}>
-        <Panel key={selected} pack={pack} view={view} records={records} act={act} busy={busy} readOnly={readOnly} goTab={setTab} />
-      </div>
+      {!readOnly && <NextAction key={view.meta.phase} meta={view.meta} counts={counts} busy={busy || !!error} act={act} />}
+      {!readOnly && view.meta.phase === 'lobby' && <JoinPanel code={code} roster={view.participants} />}
+      {tab && <button className="btn btn-secondary self-start" onClick={() => setTab(null)}>{t({ ar: 'العودة إلى نشاط المرحلة', en: 'Back to the stage activity' })}</button>}
+      {showPanel && <section className="live-panel" tabIndex={-1} ref={panelRef} aria-label={t(labels[selected])}>
+        <Panel key={selected} pack={pack} view={view} records={records} act={act} busy={busy || !!error} readOnly={readOnly} goTab={setTab} />
+      </section>}
+      <details className="live-tools">
+        <summary>{t({ ar: 'أدوات الصف والتقارير', en: 'Classroom tools and reports' })}</summary>
+        <div className="row">
+          {(Object.keys(labels) as RoomTab[]).filter((id) => id !== 'plan' || !['lobby', 'explain'].includes(view.meta.phase)).map((id) =>
+            <button type="button" key={id} aria-pressed={showPanel && selected === id} className="btn btn-secondary" onClick={() => setTab(id)}>{t(labels[id])}</button>)}
+          <a className="btn btn-secondary" href={href('/teacher/room/' + code + '/report')}>{t({ ar: 'التقرير', en: 'Report' })}</a>
+          {!readOnly && <button className="btn btn-ghost" disabled={busy || !!error} onClick={() => setClosing(true)}>{t({ ar: 'إنهاء الحصة', en: 'Close class' })}</button>}
+        </div>
+        {!readOnly && view.meta.phase !== 'lobby' && <JoinPanel code={code} />}
+      </details>
       <ConfirmModal open={closing} onClose={() => setClosing(false)} busy={busy} onConfirm={() => void act({ type: 'close' }).then((ok) => { if (ok) setClosing(false); })}
         title={t({ ar: 'نسكّر الحصة؟', en: 'Close this class?' })} confirmLabel={t({ ar: 'سكّر الحصة', en: 'Close class' })}>
         {t({ ar: 'الطلاب ما بقدروا يبعتوا أجوبة بعدها.', en: 'Learners will stop being able to submit responses.' })}

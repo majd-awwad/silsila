@@ -15,6 +15,7 @@ export interface ActivityForm {
   classSize: number;
   resources: string[];
   accessibility: string;
+  objective?: string;
 }
 
 export const defaultForm = (settings: Pick<RoomSettings, 'resources'>, participants: number): ActivityForm => ({
@@ -34,6 +35,7 @@ export function activityRequest(pack: ConceptPack, records: LearnerRecord[], gra
     classSize: clampInt(form.classSize, 1, 60),
     resources: form.resources.slice(0, 40),
     accessibility: form.accessibility.slice(0, 300),
+    objective: form.objective || undefined,
     evidence,
   };
 }

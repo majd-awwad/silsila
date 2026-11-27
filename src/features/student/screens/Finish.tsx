@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { textDraft, useLessonDraft } from '../draft';
 import { lastEvent } from '../../../brain/records';
 import { childSafeRecord, canAnswerChallenge, gotGuidance, nextSteps, noorAttempt } from '../../../flow/derive';
 import { useI18n } from '../../../i18n';
@@ -69,12 +69,10 @@ export function Summary({ pack, journey, dispatch, judge }: LessonProps) {
   const seen = lastEvent(record, 'observe');
   const practical = pack.experiments.find((x) => x.id === seen?.experimentId && x.home.steps.length)
     ?? pack.experiments.find((x) => x.home.steps.length);
-  const [comparison, setComparison] = useState<string>(() => {
-    const match = lastEvent(record, 'physical')?.matched;
-    return match === true ? 'yes' : match === false ? 'no' : '';
-  });
+  const match = lastEvent(record, 'physical')?.matched;
+  const [comparison, setComparison] = useLessonDraft('physical-comparison', match === true ? 'yes' : match === false ? 'no' : '', textDraft);
   const physical = lastEvent(record, 'physical');
-  const [note, setNote] = useState(physical?.observation ?? '');
+  const [note, setNote] = useLessonDraft('physical-observation', physical?.observation ?? '', textDraft);
   return <div className="stack">
     <Title eyebrow={t(pack.title)}>{t({ ar: 'رحلة تفكيرك', en: 'Your thinking journey' })}</Title>
     {transfer && <div className="card">

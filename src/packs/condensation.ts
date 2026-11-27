@@ -5,6 +5,7 @@
  */
 import type { ChildModel, Conditions, L } from '../contracts';
 import type { ConceptPack } from './types';
+import { findHits, normaliseText } from '../brain/text';
 
 type Out = 'drops' | 'blue' | 'fewer' | 'none';
 
@@ -23,7 +24,7 @@ function kidOutcome(m: ChildModel, c: Conditions): Out {
     if (s === 'inside_water') {
       if (!hasWater) continue;
       if (m.path === 'over_rim' && c.lid === 'on') continue;
-      outs.push(c.contents === 'blue' ? 'blue' : 'drops');
+      outs.push(c.contents === 'blue' && m.path !== 'filters_dye' ? 'blue' : 'drops');
     } else if (s === 'ice') {
       if (hasWater && cold) outs.push('drops');
     } else if (s === 'air_vapor') {
@@ -61,6 +62,13 @@ const WATER_IN_AIR = anyOf(
 );
 
 const AIR_WORDS = /هوا|الجو|بخار|رطوبه|\bair\b|vapou?r|moisture/;
+
+/** Keep this refinement within the leakage family while giving it its own testable predictions. */
+export function filtersDye(text: string): boolean {
+  const line = normaliseText(text);
+  const pattern = /(?:الزجاج|القزاز|جدار الكاسه|الكاسه) (?:بمنع|بيمنع|بتمنع|بحبس|بيحبس|بتحبس|بوقف|بيحجز|بتحجز|بيخلي|بخلي) (?:ال)?(?:صبغه|لون)(?![ء-ي])|(?:glass|wall|cup) (?:keeps?|stops?|blocks?|traps?|filters? out|holds? back) (?:the )?(?:blue |food )?(?:dye|colou?r)/;
+  return !!findHits(line, pattern).affirmed;
+}
 
 /* ───────────── pack ───────────── */
 
@@ -164,8 +172,8 @@ export const condensation: ConceptPack = {
       },
       recheck: {
         id: 'wv_r',
-        q: t('شو هو بخار المي؟', 'What is water vapour?'),
-        options: [t('مي بشكل غاز بالهوا، ما بنشوفها', 'Water as a gas in the air, which we cannot see'), t('دخان بيطلع من النار', 'Smoke from a fire'), t('مي ملوّنة', 'Coloured water')],
+        q: t('وين بتروح المي اللي بالملابس لما تنشف ع الحبل؟', 'Where does the water in clothes go as they dry on a line?'),
+        options: [t('بتنتقل للهوا كغاز ما بنشوفه', 'It moves into the air as an invisible gas'), t('بتضل كلّها بالقماش', 'All of it stays in the fabric'), t('بتختفي وما بتضل موجودة', 'It stops existing')],
         correct: 0,
         node: 'C2',
       },
@@ -309,6 +317,7 @@ export const condensation: ConceptPack = {
     },
   },
   paths: {
+    filters_dye: { label: t('المي بتمرّ واللون بيضلّ جوّا', 'Water passes and dye stays inside'), ai: 'hypothetical wall that passes water but stops dissolved dye' },
     through_wall: { label: t('بتعبر من الزجاج', 'Through the glass'), ai: 'passes through the container wall' },
     over_rim: { label: t('بتطلع من فوق وبتنزل', 'Over the rim and down'), ai: 'goes over the rim and runs down the outside' },
     from_air: { label: t('من الهوا للسطح', 'From the air to the surface'), ai: 'comes from the surrounding air onto the surface' },
@@ -455,7 +464,7 @@ export const condensation: ConceptPack = {
       name: t('هوا ناشف كتير', 'Very dry air'),
       short: t('هوا ناشف', 'Dry air'),
       change: { air: 'dry' },
-      question: t('نفس كاسة التلج، بس بمكان هواه ناشف كتير. شو رح يصير عليها؟', 'The same iced glass, but in a place with very dry air. What will happen on it?'),
+      question: t('نفس الكاسة ونفس حرارة سطحها. بس الهوا حواليها صار ناشف كتير. شو رح يصير عليها؟', 'The same glass at the same surface temperature now sits in very dry air. What will happen on it?'),
       choices: ['drops', 'fewer', 'none'],
       minutes: 10,
       materials: ['cups', 'water', 'ice'],
@@ -575,7 +584,7 @@ export const condensation: ConceptPack = {
     {
       idea: 'cold_itself',
       re: anyOf(
-        /(?:البرد|البروده|السقعه|الصقعه|برودتها)(?: (?:نفسه|نفسها|بحاله|لحاله|تاع \S+|تبع \S+))?(?: (?:هو|هي))?(?: اللي)? (?:بيصير|بتصير|صار|صارت|بيتحول|بتتحول|بيعمل|بتعمل|بيطلع|بتطلع|بيخلق|بيقلب)/,
+        /(?:البرد|البروده|السقعه|الصقعه|برودتها)(?: (?:نفسه|نفسها|بحاله|لحاله|تاع \S+|تبع \S+))?(?: (?:هو|هي))?(?: اللي)? (?:بيصير|بتصير|صار|صارت|بيتحول|بتتحول|بتحول|بيتحوّل|تحول|بتصير|بيعمل|بتعمل|بيطلع|بتطلع|بيخلق|بيقلب)/,
         /(?<![ء-ي])من (?:ال)?(?:برد|بروده|سقعه|صقعه)(?:ه|ها)?(?![ء-ي])/,
         /cold(?:ness)?(?: itself)? (?:turns?|chang(?:es?|ed)|becomes?|makes?|made|creates?|produces?|gives?) [^.?!]{0,15}?(?:water|drops?|droplets?)/,
         /(?:water|drops?) (?:is |are |comes? |came )?(?:made )?(?:from|out of|by) (?:the )?cold(?:ness)?(?![a-z])(?! (?:glass|cup|surface|thing|can|air|water|metal))/,

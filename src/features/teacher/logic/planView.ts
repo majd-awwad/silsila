@@ -14,7 +14,7 @@ import { REJECT_LABEL, groupTitle, ideaName, tr } from './labels';
 export function constraintsOf(meta: Pick<RoomMeta, 'settings' | 'rejected' | 'done'>): PlanConstraints {
   const s = meta.settings;
   return {
-    minutes: s.minutes, resources: s.resources, grade: s.grade, supervision: s.supervision, objective: s.objective,
+    minutes: s.minutes, resources: s.resources, grade: s.grade, supervision: s.supervision, objective: s.objective, mode: s.mode,
     exclude: [...new Set([...meta.rejected, ...meta.done])],
   };
 }
@@ -23,7 +23,7 @@ export const planFor = (pack: ConceptPack, meta: Pick<RoomMeta, 'settings' | 're
   plan(pack, hypothesesOf(pack, records.filter((r) => r.pack === pack.id)), constraintsOf(meta));
 
 /** Which of the pack's experiments these settings allow, before any learner has answered. */
-export function feasibility(pack: ConceptPack, settings: Pick<RoomSettings, 'minutes' | 'resources' | 'grade' | 'supervision' | 'objective'>) {
+export function feasibility(pack: ConceptPack, settings: Pick<RoomSettings, 'minutes' | 'resources' | 'grade' | 'supervision' | 'objective' | 'mode'>) {
   const c: PlanConstraints = { ...DEFAULT_CONSTRAINTS, ...settings, exclude: [] };
   return pack.experiments.map((x) => ({
     id: x.id,
@@ -91,7 +91,7 @@ export function explainChoice(pack: ConceptPack, ranked: RankedExperiment, resul
   }
   if (x) {
     const materials = x.materials.map((m) => RESOURCES[m]?.[lang] ?? m).join(tr(lang, '، ', ', ')) || tr(lang, 'بدون مواد', 'no materials');
-    out.push(tr(lang, `بدها حوالي ${n(x.minutes)} دقيقة، والمواد: ${materials}.`, `It takes about ${n(x.minutes)} minutes and needs: ${materials}.`));
+    out.push(tr(lang, `التنفيذ المادي يحتاج نحو ${n(x.minutes)} دقيقة. المواد المطلوبة هي ${materials}.`, `The physical version takes about ${n(x.minutes)} minutes and needs ${materials}.`));
   }
   return out;
 }
@@ -133,7 +133,7 @@ export function rejectedRows(pack: ConceptPack, meta: Pick<RoomMeta, 'settings' 
       }
       return REJECT_LABEL[why][lang];
     });
-    return { id: r.id, name: experimentName(pack, r.id, lang), reasons, canChoose: !r.reasons.includes('safety') && !r.reasons.includes('grade') };
+    return { id: r.id, name: experimentName(pack, r.id, lang), reasons, canChoose: r.reasons.every((reason) => reason === 'excluded') };
   });
 }
 

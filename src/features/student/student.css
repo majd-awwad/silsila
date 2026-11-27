@@ -95,3 +95,7 @@
 .sl-judge-body dl { display: grid; grid-template-columns: minmax(90px, max-content) 1fr; gap: 4px 12px; margin: 6px 0 0; }
 .sl-judge-body dt { font-weight: 700; color: var(--ink-2); }
 .sl-judge-body dd { margin: 0; }
+.sl-bubble { font-size: clamp(1rem, 2.4vw, 1.16rem); line-height: 1.65; }
+.sl-task .textarea, .sl-task .choice { font-size: 1rem; }
+.sl-card-btn .phenomenon { margin-block: 2px; }
+.sl-resume { border-inline-start: 4px solid var(--real); }

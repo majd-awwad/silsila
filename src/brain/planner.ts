@@ -40,6 +40,7 @@ export function entropy(weights: number[]): number {
 export function rejectReasons(x: Experiment, c: PlanConstraints): RejectReason[] {
   const why: RejectReason[] = [];
   if (c.exclude.includes(x.id)) why.push('excluded');
+  if (c.mode === 'digital') return why;
   if (x.minutes > c.minutes) why.push('time');
   if (c.resources && x.materials.some((m) => !c.resources!.includes(m))) why.push('materials');
   if (x.safety.adult && !c.supervision) why.push('safety');

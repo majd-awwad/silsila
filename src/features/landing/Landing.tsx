@@ -1,6 +1,11 @@
 import type { L } from '../../contracts';
 import { useI18n } from '../../i18n';
-import { PACK_LIST } from '../../packs';
+import { DEFAULT_CONSTRAINTS, plan } from '../../brain/planner';
+import { hypothesesOf } from '../../brain/records';
+import { sampleRoom, SAMPLE_CODE } from '../../brain/sample';
+import { useMemo } from 'react';
+import { PhenomenonPreview } from '../../ui/PhenomenonPreview';
+import { PACK_LIST, getPack } from '../../packs';
 import { href } from '../../router';
 import { Icon } from '../../ui/icons';
 import type { IconName } from '../../ui/icons';
@@ -61,15 +66,15 @@ export function Landing() {
             <h1>{t({ ar: 'خلّي التفكير', en: 'Make Thinking' })} <span>{t({ ar: 'يبيّن', en: 'Visible' })}</span></h1>
             <p className="lead">
               {t({
-                ar: 'سِلسِلة بتحوّل الطريقة اللي بيفكّر فيها كل متعلّم لفرضية بتنفحص، وتجربة بتتغيّر حسب الصف، وخطوة تعليمية واضحة للمعلّم. كل عقل بيفكّر بشكل مختلف، وكل عقل بيستاهل يفهم.',
-                en: 'SILSILA turns the way each learner thinks into a testable hypothesis, an experiment chosen for this class, and a clear next move for the teacher. Every mind thinks differently. Every mind deserves to understand.',
+                ar: 'احكي فكرتك لنور. شوف كيف بتصير فرضية، وجرّبها لحالك أو مع صفّك.',
+                en: 'Share an idea with Noor. See it become a hypothesis you can test on your own or together with your class.',
               })}
             </p>
             <nav className="lp-entries" aria-label={t({ ar: 'ابدأ', en: 'Start' })}>
               {ENTRIES.map((e) => (
                 <a key={e.to} className={`lp-entry ${e.primary ? 'is-primary' : ''}`} href={href(e.to)}>
                   <i><Icon name={e.icon} size={22} /></i>
-                  <span><strong className="font-display">{t(e.title)}</strong><small>{t(e.note)}</small></span>
+                  <span><strong className="font-display">{t(e.title)}</strong>{e.primary && <small>{t(e.note)}</small>}</span>
                 </a>
               ))}
             </nav>
@@ -77,6 +82,7 @@ export function Landing() {
           <ThoughtLab />
         </div>
 
+        <Collective />
         <section className="lp-section" aria-labelledby="flow-h">
           <h2 id="flow-h" className="title">{t({ ar: 'سلسلة وحدة من الفكرة للفهم', en: 'One chain from a thought to understanding' })}</h2>
           <ol className="lp-flow">
@@ -102,6 +108,7 @@ export function Landing() {
             {PACK_LIST.map((p) => (
               <a key={p.id} className="lp-pack" href={href(`/learn/${p.id}`)}>
                 <span className={`chip self-start ${p.subject === 'math' ? 'chip-idea' : 'chip-real'}`}>{t(p.subject === 'math' ? { ar: 'رياضيات', en: 'Mathematics' } : { ar: 'علوم', en: 'Science' })}</span>
+                <PhenomenonPreview pack={p} compact />
                 <strong className="font-display text-[17px]">{t(p.title)}</strong>
                 <span className="muted text-[14px]">{t(p.question)}</span>
               </a>
@@ -120,4 +127,39 @@ export function Landing() {
       </main>
     </>
   );
+}
+
+function Collective() {
+  const { t, n, lang } = useI18n();
+  const pack = getPack('condensation');
+  const { groups, test } = useMemo(() => {
+    const sample = sampleRoom(pack, lang, 100);
+    const groups = hypothesesOf(pack, sample.participants.map((person) => person.record));
+    const recommended = plan(pack, groups, DEFAULT_CONSTRAINTS).recommended;
+    return { groups, test: pack.experiments.find((item) => item.id === recommended?.id) };
+  }, [pack, lang]);
+  return <section className="lp-section collective" aria-labelledby="collective-title">
+    <header className="row !justify-between">
+      <h2 className="title" id="collective-title">{t({ ar: 'اكتشاف الصف مع بعض', en: 'Collective discovery' })}</h2>
+      <span className="chip chip-idea">{t({ ar: 'صف تجريبي', en: 'Example classroom' })}</span>
+    </header>
+    <div className="collective-flow">
+      <article className="card stack">
+        <h3 className="subtitle">{t({ ar: 'أفكار المتعلّمين', en: 'Learners’ ideas' })}</h3>
+        <ul className="stack !gap-2">{groups.filter((g) => g.ideas.length).slice(0, 4).map((g) => <li key={g.key} className="row">
+          <span className="chip chip-idea">{n(g.learners)}</span><span>{g.ideas.map((id) => t(pack.ideas[id].label)).join(' · ')}</span>
+        </li>)}</ul>
+      </article>
+      <article className="card stack">
+        <h3 className="subtitle">{t({ ar: 'تجربة الصف المشتركة', en: 'One shared classroom test' })}</h3>
+        {test && <strong>{t(test.name)}</strong>}
+        <p>{t({ ar: 'الصف بثبّت التوقّعات وبقارنها بعد التجربة.', en: 'The class locks in predictions and compares them after the test.' })}</p>
+      </article>
+      <article className="card stack">
+        <h3 className="subtitle">{t({ ar: 'خطوة المعلّم الجاية', en: 'The teacher’s next move' })}</h3>
+        <p>{t({ ar: 'يشوف كيف تغيّرت الأفكار ويحضّر نشاط مبني على دليل.', en: 'See how ideas changed and plan an activity from the evidence.' })}</p>
+        <a className="btn btn-secondary self-start" href={href('/teacher/room/' + SAMPLE_CODE)}>{t({ ar: 'افتح الصف التجريبي', en: 'Open the sample classroom' })}</a>
+      </article>
+    </div>
+  </section>;
 }

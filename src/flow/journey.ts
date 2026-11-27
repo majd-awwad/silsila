@@ -46,14 +46,14 @@ export type Action =
   | { type: 'explained'; text: string; diagnosis: Diagnosis } & At
   | { type: 'reword' }
   | { type: 'prereqAnswer'; choice: number } & At
-  | { type: 'remedyDone' } & At
+  | { type: 'remedyDone'; reflection?: string } & At
   /** open the experiment bench, optionally on a given experiment */
   | { type: 'toTest'; experimentId?: string }
   | { type: 'choose'; experimentId: string | null; cond: Conditions }
   /** go back and pick another experiment, before the prediction is locked */
   | { type: 'unchoose' }
   | { type: 'predict'; outcome: string } & At
-  | { type: 'note'; text: string }
+  | { type: 'note'; text: string; predictionReason?: string }
   | { type: 'toRevise' }
   | { type: 'toTeach' }
   | { type: 'toSummary' }
@@ -91,17 +91,18 @@ export function journeyReducer(pack: ConceptPack, s: Journey, a: Action): Journe
   switch (a.type) {
     case 'continue':
       switch (s.step) {
-        case 'meet': return go(s, !s.quick && pack.preTest.length ? 'pretest' : 'phenomenon');
+        case 'meet': return go(s, 'phenomenon');
         case 'phenomenon': return go(s, 'explain');
         // a partial idea is enough to start testing, if the learner prefers not to add to it
         case 'clarify': return lastEvent(r, 'explain')?.diagnosis.model ? go(s, 'understood') : s;
         case 'understood': {
           const last = lastEvent(r, 'explain');
           if (!last) return go(s, 'explain');
+          if (!s.quick && pack.preTest.length && !r.events.some((event) => event.type === 'quiz' && event.kind === 'pre') && !observations(r).length) return go(s, 'pretest');
           if (last.phase !== 'revise' && gapTask(pack, r)) return go(s, 'prereq');
           const status = currentDiagnosis(r)?.status;
           // an idea that is already complete after testing goes on to teaching; otherwise it gets a test
-          if (observations(r).length && (status === 'correct' || status === 'partial')) return go(s, 'teach');
+          if (status === 'correct' || (observations(r).length && status === 'partial')) return go(s, 'teach');
           return toTest(pack, s);
         }
         case 'reveal':
@@ -120,7 +121,11 @@ export function journeyReducer(pack: ConceptPack, s: Journey, a: Action): Journe
       if (!kind) return s;
       const questions = kind === 'pre' ? pack.preTest : pack.postTest;
       const next = add(s, { type: 'quiz', at: a.at, kind, answers: a.answers, score: score(a.answers, questions.map((q) => q.correct)), total: questions.length });
-      return kind === 'pre' ? go(next, 'phenomenon') : finish(next, a.at);
+      if (kind === 'post') return finish(next, a.at);
+      const explained = lastEvent(r, 'explain');
+      if (!explained) return go(next, 'phenomenon'); // before-assessment checkpoints saved by the previous release
+      if (gapTask(pack, next.record)) return go(next, 'prereq');
+      return currentDiagnosis(r)?.status === 'correct' ? go(next, 'teach') : toTest(pack, next);
     }
 
     case 'explained': {
@@ -152,11 +157,13 @@ export function journeyReducer(pack: ConceptPack, s: Journey, a: Action): Journe
 
     case 'remedyDone': {
       const task = s.step === 'prereq' ? gapTask(pack, r) : null;
-      return task?.kind === 'remedy' ? add(s, { type: 'remedy', at: a.at, prereqId: task.prereq.id }) : s;
+      return task?.kind === 'remedy' ? add(s, { type: 'remedy', at: a.at, prereqId: task.prereq.id, reflection: a.reflection?.trim().slice(0, 300) }) : s;
     }
 
     case 'toTest':
-      return TESTABLE_FROM.includes(s.step) ? toTest(pack, s, a.experimentId) : s;
+      if (!TESTABLE_FROM.includes(s.step)) return s;
+      if (!s.quick && pack.preTest.length && !r.events.some((event) => event.type === 'quiz' && event.kind === 'pre') && !observations(r).length) return go(s, 'pretest');
+      return toTest(pack, s, a.experimentId);
 
     case 'choose': {
       if (s.step !== 'hypothesis') return s;
@@ -190,7 +197,7 @@ export function journeyReducer(pack: ConceptPack, s: Journey, a: Action): Journe
       const i = r.events.map((e) => e.type).lastIndexOf('observe');
       if (i < 0) return s;
       const note = a.text.slice(0, 300);
-      return { ...s, record: { ...r, events: r.events.map((e, j) => (j === i && e.type === 'observe' ? { ...e, note } : e)) } };
+      return { ...s, record: { ...r, events: r.events.map((e, j) => (j === i && e.type === 'observe' ? { ...e, note, predictionReason: a.predictionReason?.trim().slice(0, 300) ?? e.predictionReason } : e)) } };
     }
 
     case 'toRevise':

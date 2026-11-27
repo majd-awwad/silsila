@@ -13,6 +13,8 @@ import { ExperimentStage } from '../../../ui/ExperimentStage';
 import { Icon } from '../../../ui/icons';
 import { Segmented } from '../../../ui/kit';
 import type { LessonProps } from '../context';
+import { useLessonDraft, textDraft } from '../draft';
+import { validConditions } from '../../../brain/world';
 import { HelpBar } from '../HelpBar';
 import { LockChoice, NoorSays, Split, Title, prefersReducedMotion } from '../parts';
 
@@ -47,7 +49,7 @@ export function Compare({ pack, observation }: { pack: ConceptPack; observation:
     <dl className="sl-compare">
       {predicted && <div className="is-you"><dt>{t({ ar: 'توقّعك', en: 'Your prediction' })}</dt><dd>{t(pack.outcomes[predicted])}</dd>{verdict(predicted)}</div>}
       {hypothesis && <div className="is-idea"><dt>{t({ ar: 'فكرتك بتتوقّع', en: 'Your idea predicts' })}</dt><dd>{t(pack.outcomes[hypothesis])}</dd>{verdict(hypothesis)}</div>}
-      <div className="is-real"><dt>{t({ ar: 'اللي صار', en: 'What happened' })}</dt><dd>{t(pack.outcomes[real])}</dd></div>
+      <div className="is-real"><dt>{t({ ar: 'نتيجة المحاكاة العلمية', en: 'Scientific simulation result' })}</dt><dd>{t(pack.outcomes[real])}</dd></div>
     </dl>
   );
 }
@@ -59,15 +61,20 @@ export function Hypothesis(props: LessonProps) {
   const idea = currentDiagnosis(record);
   const explanation = currentExplanation(record);
   const suggested = experimentById(pack, journey.experimentId);
-  const [own, setOwn] = useState(!suggested);
-  const [custom, setCustom] = useState<Conditions>(suggested ? conditionsFor(pack) : journey.cond);
+  const [own, setOwn] = useLessonDraft('own', !suggested, (value): value is boolean => typeof value === 'boolean');
+  const [custom, setCustom] = useLessonDraft<Conditions>('setup', suggested ? conditionsFor(pack) : journey.cond,
+    (value): value is Conditions => !!value && typeof value === 'object' && validConditions(pack, value as Conditions));
   const cond = own || !suggested ? custom : experimentConditions(pack, suggested.id);
   const changed = !sameConditions(custom, conditionsFor(pack)) || !!experimentFor(pack, custom);
   const tried = observations(record).some((o) => conditionsKey(o.cond) === conditionsKey(cond));
   const tested = observations(record).length > 0;
-  const afterGap = record.events.at(-1)?.type === 'prereq';
+  const latest = record.events.at(-1);
+  const afterGap = latest?.type === 'prereq';
+  const unresolved = latest?.type === 'prereq' && latest.phase === 'recheck' && !latest.correct;
   const mark = !!explanation && reveals({ judge: false, contradicted: shownWrong(pack, record, explanation) }).wrongStep;
-  const line = afterGap ? { ar: 'شكراً! هلأ نرجع للتجربة.', en: 'Thank you! Now back to the experiment.' }
+  const line = unresolved
+    ? { ar: 'هالفكرة لسا بدها شوي وقت. بتقدر تسأل معلّمك، ومنكمّل التجربة سوا.', en: 'This idea still needs some time. You can ask your teacher and keep exploring with me.' }
+    : afterGap ? { ar: 'شكراً! هلأ نرجع للتجربة.', en: 'Thank you! Now back to the experiment.' }
     : !idea ? { ar: 'خلّينا نشوف شو بيصير، وبعدين بتحكيلي رأيك.', en: 'Let us see what happens, then tell me what you think.' }
       : tested ? { ar: 'شو منجرّب هالمرة؟', en: 'What shall we test this time?' }
         : { ar: 'هاد عالم فكرتك. يلا نمتحنها بتجربة.', en: 'This is your idea’s world. Let us put it to a test.' };
@@ -87,6 +94,9 @@ export function Hypothesis(props: LessonProps) {
             <span className="chip chip-brand self-start"><Icon name="flask" size={14} />{t({ ar: 'تجربة بقترحها', en: 'A test I suggest' })}</span>
             <h2 className="subtitle">{t(suggested.name)}</h2>
             <p className="muted">{t(suggested.short)}</p>
+            {idea?.model && <p className="help">{idea.model.path === 'filters_dye'
+              ? t({ ar: 'جرّب تغيّر اللي جوّا الكاسة لتفحص إذا فكرتك بتحتاج مي جوّا أصلاً.', en: 'Change what is inside the glass to test whether your idea needs water inside at all.' })
+              : t({ ar: 'خلّينا نغيّر هالجزء ونشوف إذا فكرتك بتتوقّع نفس نتيجة المحاكاة.', en: 'Change this part and see whether your idea predicts what the simulation shows.' })}</p>}
             <Changes pack={pack} cond={cond} />
             <button type="button" className="btn btn-primary btn-lg" disabled={busy} onClick={() => dispatch({ type: 'choose', experimentId: suggested.id, cond })}>
               {t({ ar: 'جرّب هاي', en: 'Try this one' })}<Icon name="next" />
@@ -137,7 +147,7 @@ export function Predict({ pack, journey, dispatch }: LessonProps) {
         <Title eyebrow={t({ ar: 'توقّع قبل ما تشوف', en: 'Predict before you look' })}>{x ? t(x.name) : t({ ar: 'تجربتي', en: 'My experiment' })}</Title>
         <NoorSays mood="thinking" text={question} />
         <Changes pack={pack} cond={journey.cond} />
-        <LockChoice lock label={question} options={choicesFor(pack, journey.experimentId).map((id) => ({ id, label: t(pack.outcomes[id]) }))}
+        <LockChoice draftField={'prediction:' + conditionsKey(journey.cond)} lock label={question} options={choicesFor(pack, journey.experimentId).map((id) => ({ id, label: t(pack.outcomes[id]) }))}
           submit={t({ ar: 'ثبّت توقّعي', en: 'Lock my prediction' })} onSubmit={(outcome) => dispatch({ type: 'predict', outcome, at: Date.now() })} />
         <p className="help">{t({ ar: 'بعد ما تثبّت توقّعك ما بيتغيّر. مش لازم يطلع صح: المهم نشوف.', en: 'A locked prediction cannot change. It does not have to be right: what matters is finding out.' })}</p>
         <button type="button" className="btn btn-ghost self-start sl-touch" onClick={() => dispatch({ type: 'unchoose' })}><Icon name="back" />{t({ ar: 'غيّر التجربة', en: 'Change the experiment' })}</button>
@@ -152,7 +162,9 @@ export function Reveal({ pack, journey, dispatch }: LessonProps) {
   const seen = observations(journey.record).at(-1)!;
   // a short wait after locking; none after a refresh or with reduced motion
   const [running, setRunning] = useState(() => !prefersReducedMotion() && Date.now() - seen.at < 1500);
-  const [note, setNote] = useState(seen.note);
+  const [note, setNote] = useLessonDraft('observation', seen.note, textDraft);
+  const [reason, setReason] = useLessonDraft('prediction-reason', seen.predictionReason ?? '', textDraft);
+  const changedPrediction = !!seen.predicted && !!seen.hypothesis && seen.predicted !== seen.hypothesis;
   useEffect(() => {
     if (!running) return;
     const timer = setTimeout(() => setRunning(false), 1600);
@@ -160,13 +172,13 @@ export function Reveal({ pack, journey, dispatch }: LessonProps) {
   }, [running]);
   const surprised = observationContradicts(pack, seen) || (!!seen.predicted && !outcomeMatches(pack, seen.predicted, seen.real));
   const next = () => {
-    if (note !== seen.note) dispatch({ type: 'note', text: note });
+    if (note !== seen.note || reason !== (seen.predictionReason ?? '')) dispatch({ type: 'note', text: note, predictionReason: reason });
     dispatch({ type: 'continue', at: Date.now() });
   };
   return (
     <Split
       task={<>
-        <Title eyebrow={t({ ar: 'النتيجة', en: 'The result' })}>{running ? t({ ar: 'عم نجرّب…', en: 'Running the test…' }) : t({ ar: 'شو لاحظت؟', en: 'What did you notice?' })}</Title>
+        <Title eyebrow={t({ ar: 'النتيجة', en: 'The result' })}>{running ? t({ ar: 'عم نجرّب…', en: 'Running the test…' }) : t({ ar: 'شو لاحظت بالمحاكاة؟', en: 'What did you notice in the simulation?' })}</Title>
         <NoorSays mood={running ? 'thinking' : surprised ? 'surprised' : 'discovering'}
           text={running ? t({ ar: 'يلا نشوف…', en: 'Let us see…' })
             : surprised ? t({ ar: 'أوه! قارن بين التلاتة: شو الفرق؟', en: 'Oh! Compare the three: what is different?' })
@@ -179,6 +191,10 @@ export function Reveal({ pack, journey, dispatch }: LessonProps) {
         ) : (
           <div className="stack rise">
             <Compare pack={pack} observation={seen} />
+            {changedPrediction && <label className="field">
+              <span className="label">{t({ ar: 'توقّعك غير اللي بتتوقّعه فكرتك الأولى. شو اللي خلاك تختار هيك؟', en: 'Your prediction differs from what your earlier idea predicts. What led you to choose it?' })}</span>
+              <textarea className="textarea" dir="auto" rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
+            </label>}
             <label className="field">
               <span className="label">{t({ ar: 'ملاحظتي (إذا بدك)', en: 'My observation (optional)' })}</span>
               <textarea className="textarea" dir="auto" rows={2} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />
