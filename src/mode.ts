@@ -1,33 +1,37 @@
 /**
  * Two ways to see the same lesson (decision of 25/11):
- *  - child mode (default): the child sees only THEIR OWN idea and chain. The scientific chain, the
- *    "what really happens" table and the hint about which experiment breaks the idea stay hidden, because
- *    showing them would give the answer away.
- *  - judge mode (?judge=1): everything is open, so the AI's reasoning can be inspected. ?judge=0 switches it off.
+ *  - child mode (default): the learner sees only THEIR OWN idea and chain. The scientific steps, results of
+ *    experiments they have not run, the planner's ranking and any mark on their chain stay hidden until their own
+ *    evidence shows it, because showing them would give the answer away.
+ *  - judge mode (?judge=1): the reasoning panel is available, so the system can be inspected. ?judge=0 switches it off.
  * The choice is remembered on this device.
  */
+import { parseRoute } from './router';
+
 const KEY = 'silsila-judge';
 
-export function isJudgeMode(): boolean {
+/** `query` is the route query (page query and hash query merged); read from the address when not given. */
+export function isJudgeMode(query?: URLSearchParams): boolean {
+  let asked: string | null = null;
   try {
-    const q = new URLSearchParams(location.search).get('judge');
-    if (q === '1') localStorage.setItem(KEY, '1');
-    if (q === '0') localStorage.removeItem(KEY);
+    asked = (query ?? parseRoute(location.hash, location.search).query).get('judge');
+    if (asked === '1') localStorage.setItem(KEY, '1');
+    if (asked === '0') localStorage.removeItem(KEY);
     return localStorage.getItem(KEY) === '1';
   } catch {
-    return new URLSearchParams(location.search).get('judge') === '1';
+    return asked === '1';
   }
 }
 
-/** What the child may see of the AI's reasoning, given where they are in the lesson. */
-export function reveals(opts: { judge: boolean; lab: string; contradicted: boolean }) {
-  const { judge, lab, contradicted } = opts;
+/** What may be shown of the system's reasoning, given what the learner has seen for themselves. */
+export function reveals(opts: { judge: boolean; contradicted: boolean }) {
+  const { judge, contradicted } = opts;
   return {
-    /** the scientific chain: only after the child has fixed their idea (or in judge mode) */
-    science: judge || lab !== 'explain',
-    /** mark the wrong step in the child's chain: only once an experiment has shown it (or in judge mode) */
-    wrongStep: judge || contradicted || lab !== 'explain',
-    /** the engine's table, confidence, broken-link grid, rubric, best-experiment button */
+    /** mark the link to investigate in the learner's chain: only after their own experiment showed it */
+    wrongStep: judge || contradicted,
+    /** the pack's scientific steps in their authored wording */
+    science: judge,
+    /** planner ranking and scores, diagnosis internals, sample sentences */
     engine: judge,
   };
 }

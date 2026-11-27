@@ -1,62 +1,40 @@
-import { Suspense, lazy, useEffect, useReducer, useState } from 'react';
-import { initialState, reducer } from './flow/machine';
-import { getPack } from './packs';
-import { Quiz } from './screens/Quiz';
-import { Summary } from './screens/Summary';
-import { Teacher } from './screens/Teacher';
-import { Welcome } from './screens/Welcome';
-import { saveSession } from './store/sessions';
+import { Suspense, lazy } from 'react';
+import { Landing } from './features/landing/Landing';
+import { useRoute } from './router';
+import { EmptyState, Loading, Shell } from './ui/kit';
+import { useI18n } from './i18n';
 
-// the 3D lab (three.js) loads only when the child reaches it
-const Lab = lazy(() => import('./screens/Lab').then((m) => ({ default: m.Lab })));
+const StudentApp = lazy(() => import('./features/student/StudentApp').then((m) => ({ default: m.StudentApp })));
+const JoinApp = lazy(() => import('./features/join/JoinApp').then((m) => ({ default: m.JoinApp })));
+const TeacherApp = lazy(() => import('./features/teacher/TeacherApp').then((m) => ({ default: m.TeacherApp })));
+const ScreenApp = lazy(() => import('./features/screen/ScreenApp').then((m) => ({ default: m.ScreenApp })));
+const JudgeApp = lazy(() => import('./features/judge/JudgeApp').then((m) => ({ default: m.JudgeApp })));
 
-function useHash() {
-  const [hash, setHash] = useState(location.hash);
-  useEffect(() => {
-    const on = () => setHash(location.hash);
-    addEventListener('hashchange', on);
-    return () => removeEventListener('hashchange', on);
-  }, []);
-  return hash;
+function NotFound() {
+  const { t } = useI18n();
+  return (
+    <Shell narrow>
+      <EmptyState action={<a className="btn btn-primary" href="#/">{t({ ar: 'الصفحة الرئيسية', en: 'Home' })}</a>}>
+        {t({ ar: 'هالصفحة مش موجودة.', en: 'This page does not exist.' })}
+      </EmptyState>
+    </Shell>
+  );
 }
 
+/** #/ · #/learn/:pack? · #/join/:code? · #/teacher/… · #/screen/:code · #/judge */
 export default function App() {
-  const hash = useHash();
-  const [state, dispatch] = useReducer(reducer, initialState);
-
-  // every change to the child's session is saved on this device
-  useEffect(() => {
-    if (state.session) saveSession(state.session).catch(() => {});
-  }, [state.session]);
-
-  if (hash.startsWith('#/teacher')) return <Teacher />;
-
-  switch (state.phase) {
-    case 'welcome':
-      return <Welcome onStart={(st) => dispatch({ type: 'START', ...st })} />;
-    case 'pretest':
-      return (
-        <Quiz
-          key="pre" title="قبل ما نبلّش: ٤ أسئلة"
-          intro="جاوب زي ما بتفكّر. مش امتحان، ولا في علامة."
-          questions={getPack(state.session?.pack).preTest} onDone={(result) => dispatch({ type: 'PRE_DONE', result })}
-        />
-      );
-    case 'lab':
-      return (
-        <Suspense fallback={<main className="stage-bg min-h-full grid place-items-center text-ink-2">نور عم تجهّز المختبر…</main>}>
-          <Lab state={state} dispatch={dispatch} />
-        </Suspense>
-      );
-    case 'posttest':
-      return (
-        <Quiz
-          key="post" title="آخر خطوة: ٤ أسئلة"
-          intro="هلأ بعد ما جرّبت وعلّمت نور، جاوب هالأسئلة."
-          questions={getPack(state.session?.pack).postTest} onDone={(result) => dispatch({ type: 'POST_DONE', result })}
-        />
-      );
-    case 'summary':
-      return state.session ? <Summary session={state.session} onRestart={() => dispatch({ type: 'RESTART' })} /> : null;
-  }
+  const { path } = useRoute();
+  const [area, ...rest] = path;
+  const page = () => {
+    switch (area) {
+      case undefined: return <Landing />;
+      case 'learn': return <StudentApp path={rest} />;
+      case 'join': return <JoinApp code={rest[0]?.toUpperCase() ?? null} />;
+      case 'teacher': return <TeacherApp path={rest} />;
+      case 'screen': return <ScreenApp code={rest[0]?.toUpperCase() ?? null} />;
+      case 'judge': return <JudgeApp path={rest} />;
+      default: return <NotFound />;
+    }
+  };
+  return <Suspense fallback={<Loading />}>{page()}</Suspense>;
 }

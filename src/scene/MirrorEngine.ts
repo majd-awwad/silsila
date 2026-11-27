@@ -86,7 +86,7 @@ function conditions(c: Conditions) {
   return { warm, empty, color: c.contents === 'blue', cover: c.lid === 'on', hum, rate: clamp((dew - surf) / 8, 0, 1) };
 }
 
-const LEVEL_RATE: Record<string, number> = { stays: 0, slow: 0.018, fast: 0.055, wet: 0.045 };
+const LEVEL_RATE: Record<string, number> = { stays: 0, slow: 0.018, normal: 0.034, fast: 0.055, wet: 0.045 };
 const MIN_LEVEL = 0.32;
 const WARM_RING = new THREE.Color(1.0, 0.62, 0.25).multiplyScalar(1.6);
 const COLD_RING = new THREE.Color(0.55, 0.8, 1.0).multiplyScalar(1.5);
@@ -353,14 +353,14 @@ export class MirrorEngine {
   }
 
   private setVisuals(w: World) {
-    if (this.pack.scene === 'evaporation') {
+    if (this.pack.scene3d === 'evaporation') {
       const c = this.cond;
       w.water.visible = true;
       w.ice.forEach((m) => (m.visible = false));
       w.lid.visible = c.lid === 'closed';
       w.napkin.visible = c.napkin === 'yes';
       w.sun.visible = c.sun === 'yes';
-      w.targetWater = c.place === 'warm' ? WATER.warm : WATER.clear;
+      w.targetWater = c.temp === 'warm' ? WATER.warm : WATER.clear;
       return;
     }
     const c = conditions(this.cond);
@@ -391,11 +391,11 @@ export class MirrorEngine {
   private kidBehaviours() {
     const c = conditions(this.cond);
     const m = this.model;
-    const pred = !m ? 'drops' : this.pack.kidOutcome(m, this.cond);
+    const pred = m ? this.pack.kidOutcome(m, this.cond) : this.pack.realOutcome(this.cond);
     const rate = pred === 'none' ? 0 : pred === 'fewer' ? 0.3 : 1;
     const blue = pred === 'blue';
     const list: string[] = [];
-    if (!m) list.push('magic');
+    if (!m) list.push('vapor');
     else for (const k of m.sources) {
       if (k === 'inside_water') { if (!c.empty) list.push(m.path === 'over_rim' ? 'rim' : 'leak'); }
       else if (k === 'ice') { if (!c.empty && !c.warm) list.push('ice'); }
@@ -550,7 +550,7 @@ export class MirrorEngine {
       const k = ((now + i * 0.6) % 1.8) / 1.8;
       a.scale.setScalar(1 + k * 0.6); a.position.y = 0.2 + i * 0.5;
       const mat = a.material as THREE.MeshBasicMaterial;
-      mat.color.copy(c.place === 'warm' ? WARM_RING : COLD_RING);
+      mat.color.copy(c.temp === 'warm' ? WARM_RING : COLD_RING);
       mat.opacity = (1 - k) * 0.35;
     });
   }
@@ -562,8 +562,8 @@ export class MirrorEngine {
 
   private stepEvapKid(dt: number) {
     const w = this.kid, c = this.cond, m = this.model;
-    const sources = m ? m.sources : ['vanishes'];
-    const out = m ? this.pack.kidOutcome(m, c) : 'fast';
+    const sources = (m ?? this.pack.correctModel).sources;
+    const out = m ? this.pack.kidOutcome(m, c) : this.pack.realOutcome(c);
     this.evapCommon(w, dt, out, sources.includes('leak_bottom'));
     const closed = c.lid === 'closed';
     const emit = out === 'stays' ? (closed ? 0.35 : 0) : out === 'slow' ? 0.45 : 1;
@@ -652,7 +652,7 @@ export class MirrorEngine {
       if (!this.reduced) w.ice.forEach((m, i) => { m.position.y = w.iceBase[i] + Math.sin(t * 0.9 + i * 2) * 0.012; m.rotation.y += dt * 0.05; });
     }
     for (const w of [this.kid, this.realW]) w.water.scale.y = w.level;
-    if (this.pack.scene === 'evaporation') {
+    if (this.pack.scene3d === 'evaporation') {
       this.stepEvapKid(dt);
       if (this.split) this.stepEvapReal(dt);
     } else {

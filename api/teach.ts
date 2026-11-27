@@ -1,12 +1,17 @@
-/** POST /api/teach {pack, text} → TeachResult. */
-import { heuristicTeach } from '../src/brain/heuristic';
-import { teachWithLLM } from '../src/brain/server';
-import { bad, cleanText, logFallback, packFrom, readJson } from './_util';
+/** POST /api/teach {pack, lang, text} → TeachResult: did the learner correct Noor, with a reason? */
+import { AssessRequest } from '../src/contracts';
+import { teach } from './_ai';
+import { accept, error, json, logError, packById } from './_util';
 
 export async function POST(request: Request): Promise<Response> {
-  const body = await readJson(request);
-  const pack = packFrom(body), text = cleanText(body?.text);
-  if (!pack || !text) return bad();
-  try { return Response.json(await teachWithLLM(pack, text)); }
-  catch (e) { logFallback('teach', e); return Response.json({ ...heuristicTeach(pack, text), source: 'fallback' }); }
+  const got = await accept(request, AssessRequest, 'ai', 8_192);
+  if ('refuse' in got) return got.refuse;
+  const pack = packById(got.input.pack), text = got.input.text.trim();
+  if (!pack || !text) return error('bad_request', 400);
+  try {
+    return json(await teach(pack, text));
+  } catch (e) {
+    logError('teach', e);
+    return error('server_error', 500);
+  }
 }

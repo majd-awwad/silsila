@@ -1,0 +1,88 @@
+{
+  "holdout": {
+    "endToEnd": {
+      "n": 141,
+      "of": 251,
+      "pct": 56.2
+    },
+    "answerLeakage": {
+      "n": 0,
+      "of": 201,
+      "pct": 0
+    }
+  },
+  "packs": {
+    "condensation": {
+      "endToEnd": {
+        "n": 50,
+        "of": 70,
+        "pct": 71.4
+      },
+      "answerLeakage": {
+        "n": 0,
+        "of": 59,
+        "pct": 0
+      }
+    },
+    "evaporation": {
+      "endToEnd": {
+        "n": 34,
+        "of": 50,
+        "pct": 68
+      },
+      "answerLeakage": {
+        "n": 0,
+        "of": 36,
+        "pct": 0
+      }
+    },
+    "shadows": {
+      "endToEnd": {
+        "n": 13,
+        "of": 33,
+        "pct": 39.4
+      },
+      "answerLeakage": {
+        "n": 0,
+        "of": 26,
+        "pct": 0
+      }
+    },
+    "fractions": {
+      "endToEnd": {
+        "n": 14,
+        "of": 33,
+        "pct": 42.4
+      },
+      "answerLeakage": {
+        "n": 0,
+        "of": 26,
+        "pct": 0
+      }
+    },
+    "buoyancy": {
+      "endToEnd": {
+        "n": 17,
+        "of": 32,
+        "pct": 53.1
+      },
+      "answerLeakage": {
+        "n": 0,
+        "of": 24,
+        "pct": 0
+      }
+    },
+    "area-perimeter": {
+      "endToEnd": {
+        "n": 13,
+        "of": 33,
+        "pct": 39.4
+      },
+      "answerLeakage": {
+        "n": 0,
+        "of": 30,
+        "pct": 0
+      }
+    }
+  }
+}

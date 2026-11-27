@@ -1,75 +1,49 @@
 import { describe, expect, it } from 'vitest';
-import { entryFromSession, interventionGroups } from '../src/brain/classInsights';
+import { interventionGroups } from '../src/brain/classInsights';
+import { replaySteps } from '../src/brain/evidence';
+import { addEvent, eventsOf, initialDiagnosis } from '../src/brain/records';
+import { teacherView } from '../src/brain/room';
+import { sampleRoom, sampleTeacherOp } from '../src/brain/sample';
+import { buildReport, reportCSV } from '../src/features/teacher/logic/report';
 import { PACK_LIST } from '../src/packs';
-import { demoClass } from '../src/store/demoClass';
 
-describe('curriculum anchors (checked against the printed book, 26/11)', () => {
-  for (const pack of PACK_LIST) {
-    it(`${pack.id} names its book, unit, lesson and pages`, () => {
-      const c = pack.curriculum;
-      expect(c.book).toContain('الصف الثالث');
-      expect(c.unit.length).toBeGreaterThan(5);
-      expect(c.lesson).toContain('دورة الماء');
-      expect(c.pages).toMatch(/[٠-٩]/);
-    });
-  }
-});
-
-describe('intervention groups for the teacher', () => {
-  for (const pack of PACK_LIST) {
-    const entries = demoClass(pack.id).map(entryFromSession);
-
-    it(`${pack.id}: groups share one wrong idea, never the correct one, and each has a move`, () => {
-      const groups = interventionGroups(pack, entries);
-      const ideaGroups = groups.filter((g) => g.kind === 'idea');
-      expect(ideaGroups.length).toBeGreaterThan(0);
-      for (const g of ideaGroups) {
-        expect(g.source).not.toBe(pack.correctModel.sources[0]);
-        expect(g.members.length).toBeGreaterThan(0);
-        expect(g.move.length).toBeGreaterThan(10);
-        if (g.experiment) expect(pack.presets.some((p) => p.id === g.experiment!.id)).toBe(true);
-      }
-    });
-
-    it(`${pack.id}: nobody who already understood is put in a wrong-idea group`, () => {
-      const groups = interventionGroups(pack, entries).filter((g) => g.kind === 'idea');
-      const understood = new Set(entries.filter((e) => e.understood).map((e) => e.pseudonym));
-      for (const g of groups) for (const m of g.members) expect(understood.has(m)).toBe(false);
-    });
-
-    it(`${pack.id}: same entries give the same groups (deterministic)`, () => {
-      expect(interventionGroups(pack, entries)).toEqual(interventionGroups(pack, entries));
-    });
-  }
-
-  it('children Noor had to help form their own group', () => {
-    const pack = PACK_LIST[0];
-    const base = demoClass(pack.id).map(entryFromSession);
-    const entries = [{ ...base[0], needsHelp: true, understood: false, pseudonym: 'نجمة' }, ...base.slice(1)];
-    const help = interventionGroups(pack, entries).find((g) => g.kind === 'help');
-    expect(help?.members).toContain('نجمة');
+describe.each(PACK_LIST.map((pack) => [pack.id, pack] as const))('teacher tools for %s', (_id, pack) => {
+  it('states what has been checked against the school curriculum', () => {
+    expect(pack.curriculum.note.ar.length).toBeGreaterThan(5);
+    expect(pack.curriculum.note.en.length).toBeGreaterThan(5);
+    if (pack.id === 'condensation' || pack.id === 'evaporation') expect(pack.curriculum.verified).toBe(true);
   });
-});
-
-import { replaySteps } from '../src/brain/replay';
-
-describe('Thinking Replay', () => {
-  for (const pack of PACK_LIST) {
-    it(`${pack.id}: replay starts with the child's first idea and shows each experiment`, () => {
-      const sessions = demoClass(pack.id).filter((s) => s.experiments.length > 0);
-      expect(sessions.length).toBeGreaterThan(0);
-      for (const s of sessions) {
-        const steps = replaySteps(pack, s);
-        expect(steps[0].kind).toBe('idea');
-        expect(steps.filter((x) => x.kind === 'test').length).toBe(s.experiments.length);
-        for (const t of steps.filter((x) => x.kind === 'test')) expect(t.predicted && t.real).toBeTruthy();
-      }
-    });
-  }
-
-  it('a child Noor had to help sees that in the replay', () => {
-    const pack = PACK_LIST[0];
-    const s = { ...demoClass(pack.id)[0], scaffolded: true };
-    expect(replaySteps(pack, s).some((x) => x.kind === 'noor' && x.title === 'نور ساعدتك')).toBe(true);
+  it('suggests deterministic temporary groups based on learner evidence', () => {
+    const records = sampleRoom(pack, 'en').participants.map((p) => p.record);
+    const groups = interventionGroups(pack, records);
+    expect(groups).toEqual(interventionGroups(pack, records));
+    const assigned = groups.flatMap((g) => g.members);
+    expect(new Set(assigned).size).toBe(assigned.length);
+    const understood = records.filter((r) => initialDiagnosis(r)?.status === 'correct').map((r) => r.id);
+    for (const group of groups) {
+      expect(group.move.en.length).toBeGreaterThan(5);
+      if (group.kind === 'idea') expect(group.members.some((m) => understood.includes(m))).toBe(false);
+      if (group.experimentId) expect(pack.experiments.some((test) => test.id === group.experimentId)).toBe(true);
+    }
+  });
+  it('builds the replay and export from observed class evidence', () => {
+    const advance = (data: ReturnType<typeof sampleRoom>, op: Parameters<typeof sampleTeacherOp>[2]) => {
+      const answer = sampleTeacherOp(pack, data, op);
+      if (!answer.ok) throw new Error(answer.error);
+      return answer.data;
+    };
+    let room = advance(sampleRoom(pack, 'en'), { type: 'choose', experimentId: pack.experiments[0].id });
+    for (const phase of ['predict', 'observe', 'revise', 'transfer', 'insight'] as const) room = advance(room, { type: 'phase', phase });
+    const record = room.participants[0].record;
+    const assisted = addEvent(record, { type: 'assist', level: 4, at: Date.now() });
+    const replay = replaySteps(pack, assisted);
+    expect(replay[0].kind).toBe('explain');
+    expect(replay.filter((s) => s.kind === 'test')).toHaveLength(eventsOf(record, 'observe').length);
+    expect(replay.some((s) => s.kind === 'help')).toBe(true);
+    const report = buildReport(pack, teacherView(room), null, 'en');
+    expect(report.sample).toBe(true);
+    expect(report.counts.participants).toBe(room.participants.length);
+    expect(reportCSV(report)).toContain(room.participants[0].alias);
+    expect(reportCSV(report)).not.toContain(room.participants[0].id);
   });
 });

@@ -1,0 +1,97 @@
+{
+  "mode": "offline-fallback",
+  "model": "offline-fallback",
+  "at": "2026-11-27T10:22:54.309Z",
+  "packs": [
+    {
+      "pack": "condensation",
+      "bySplit": {
+        "dev": {
+          "cases": 41,
+          "status_accuracy": 97.6,
+          "source_accuracy": 100,
+          "source_macro_f1": 100,
+          "broken_link_accuracy": 100,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": 0,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        },
+        "holdout": {
+          "cases": 39,
+          "status_accuracy": 87.2,
+          "source_accuracy": 92.6,
+          "source_macro_f1": 90.3,
+          "broken_link_accuracy": 100,
+          "experiment_fits_misconception": 90.9,
+          "false_diagnosis_rate": 20,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        }
+      },
+      "latency_ms": {
+        "p50": 0,
+        "p95": 0
+      },
+      "contaminated": [
+        "ما بعرف",
+        "في مي بالهوا"
+      ],
+      "misses": [
+        "[dev] status  «هيك الكاسات بيصير فيها» expected model, got clarify",
+        "[holdout] source  «البرودة بتطلع من الكاسة وبتصير مي» expected cold_itself, got inside_water",
+        "[holdout] experiment «البرودة بتطلع من الكاسة وبتصير مي» E_color does not break cold_itself",
+        "[holdout] status  «بخار الميه اللي بالهوا لما يلمس الكاسه البارده بيتحول لمي» expected correct, got model",
+        "[holdout] status  «لما بنحكي قريب من الكاسة بيطلع نفسنا عليها» expected model, got clarify",
+        "[holdout] status  «النقط بتيجي من السما» expected model, got clarify",
+        "[holdout] status  «الكاسة بتطلع مي لما تبرد» expected model, got clarify",
+        "[holdout] source  «بتنزل نقط من المكيّف عليها» expected spill_from_above, got inside_water",
+        "[holdout] experiment «بتنزل نقط من المكيّف عليها» E_color does not break spill_from_above",
+        "[holdout] status  «مي الكاسة بتعدي من الزجاج لبرا» expected model, got clarify"
+      ]
+    },
+    {
+      "pack": "evaporation",
+      "bySplit": {
+        "dev": {
+          "cases": 1,
+          "status_accuracy": 100,
+          "source_accuracy": 100,
+          "source_macro_f1": 100,
+          "broken_link_accuracy": null,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": null,
+          "false_correct_rate": 0,
+          "ambiguous_handled": null,
+          "answer_leaks": 0
+        },
+        "holdout": {
+          "cases": 23,
+          "status_accuracy": 82.6,
+          "source_accuracy": 100,
+          "source_macro_f1": 100,
+          "broken_link_accuracy": null,
+          "experiment_fits_misconception": 100,
+          "false_diagnosis_rate": 33.3,
+          "false_correct_rate": 0,
+          "ambiguous_handled": 100,
+          "answer_leaks": 0
+        }
+      },
+      "latency_ms": {
+        "p50": 0,
+        "p95": 0
+      },
+      "contaminated": [],
+      "misses": [
+        "[holdout] status  «في ثقب صغير تحت» expected model, got clarify",
+        "[holdout] status  «الحرارة بتخلي المي تصير غاز وتطلع للجو» expected correct, got model",
+        "[holdout] status  «الكاسة بتمص المي» expected model, got clarify",
+        "[holdout] status  «المي بتطلع لفوق» expected model, got clarify"
+      ]
+    }
+  ],
+  "usage": null
+}
