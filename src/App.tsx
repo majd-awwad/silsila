@@ -9,6 +9,7 @@ const JoinApp = lazy(() => import('./features/join/JoinApp').then((m) => ({ defa
 const TeacherApp = lazy(() => import('./features/teacher/TeacherApp').then((m) => ({ default: m.TeacherApp })));
 const ScreenApp = lazy(() => import('./features/screen/ScreenApp').then((m) => ({ default: m.ScreenApp })));
 const Passport = lazy(() => import('./features/passport/Passport').then((m) => ({ default: m.Passport })));
+const Vision = lazy(() => import('./features/judge/Vision').then((m) => ({ default: m.Vision })));
 const JudgeApp = lazy(() => import('./features/judge/JudgeApp').then((m) => ({ default: m.JudgeApp })));
 
 function NotFound() {
@@ -33,7 +34,7 @@ export default function App() {
       case 'join': return <JoinApp code={rest[0]?.toUpperCase() ?? null} />;
       case 'teacher': return <TeacherApp path={rest} />;
       case 'screen': return <ScreenApp code={rest[0]?.toUpperCase() ?? null} />;
-      case 'judge': return <JudgeApp path={rest} />;
+      case 'judge': return rest[0] === 'vision' ? <Vision /> : <JudgeApp path={rest} />;
       case 'passport': return <Passport />;
       default: return <NotFound />;
     }

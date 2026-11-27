@@ -34,3 +34,16 @@ describe('learning passport', () => {
     expect(steps.every((s) => s.pack.id === 'condensation')).toBe(true);
   });
 });
+
+describe('vision page data', () => {
+  it('lists exactly the seven ideas with one honest status each and no idea claimed as done without a route or a reason', async () => {
+    const { IDEAS, ROADMAP } = await import('../src/features/judge/ideas');
+    expect(IDEAS.map((i) => i.n)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    for (const i of IDEAS) {
+      expect(['exists', 'mini', 'vision']).toContain(i.status);
+      expect(i.missing.ar.length).toBeGreaterThan(10);
+      if (i.status === 'vision') expect(i.route).toBeNull();
+    }
+    expect(ROADMAP).toHaveLength(5);
+  });
+});

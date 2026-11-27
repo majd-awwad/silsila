@@ -93,7 +93,7 @@ export function JudgeApp(_: { path?: string[] }) {
   const joinUrl = room ? absoluteLink(`/join/${room}`) : '';
 
   return (
-    <Shell nav={[{ to: '/judge', label: { ar: 'تجربة الحكّام', en: 'Judge experience' }, active: true }, { to: '/teacher', label: { ar: 'المعلّم', en: 'Teacher' } }]}>
+    <Shell nav={[{ to: '/judge', label: { ar: 'تجربة الحكّام', en: 'Judge experience' }, active: true }, { to: '/judge/vision', label: { ar: 'الرؤية وخارطة الطريق', en: 'Vision and roadmap' } }, { to: '/teacher', label: { ar: 'المعلّم', en: 'Teacher' } }]}>
       <div className="stack !gap-6">
         <header className="row">
           <div className="stack !gap-1">
