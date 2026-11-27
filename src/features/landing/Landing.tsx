@@ -15,10 +15,16 @@ import { ThoughtLab } from './ThoughtLab';
 import './landing.css';
 
 const ENTRIES: { to: string; icon: IconName; title: L; note: L; primary?: boolean }[] = [
-  { to: '/learn', icon: 'flask', primary: true, title: { ar: 'اكتشف كطالب', en: 'Student discovery' }, note: { ar: 'احكي فكرتك وجرّبها', en: 'Say your idea and test it' } },
-  { to: '/teacher', icon: 'cap', title: { ar: 'مساحة المعلّم', en: 'Teacher workspace' }, note: { ar: 'خريطة تفكير الصف وخطة التدخّل', en: 'Class reasoning map and next steps' } },
+  { to: '/learn', icon: 'flask', primary: true, title: { ar: 'ابدأ كطالب', en: 'Start as a learner' }, note: { ar: 'احكي فكرتك وجرّبها مع نور', en: 'Say your idea and test it with Noor' } },
+  { to: '/teacher', icon: 'cap', title: { ar: 'مساحة المعلّم', en: 'Teacher workspace' }, note: { ar: 'تحقّق سريع أو حصة اكتشاف', en: 'Quick check or discovery lesson' } },
   { to: '/join', icon: 'qr', title: { ar: 'انضم لصف حي', en: 'Join a live class' }, note: { ar: 'بكود أو بمسح QR', en: 'With a code or a QR scan' } },
   { to: '/judge', icon: 'eye', title: { ar: 'تجربة الحكّام', en: 'Judge experience' }, note: { ar: 'العرض خطوة بخطوة مع الأدلّة', en: 'Guided demonstration with evidence' } },
+];
+
+const PILLARS: { icon: IconName; title: L; note: L }[] = [
+  { icon: 'eye', title: { ar: 'Understand · نفهم', en: 'Understand' }, note: { ar: 'نفهم كيف بيفكّر الطالب، من كلامه هو، بدليل من نصّه.', en: 'We understand how the learner thinks, from their own words, with evidence from the text.' } },
+  { icon: 'link', title: { ar: 'Recover · نستدرك', en: 'Recover' }, note: { ar: 'لما نلاقي حلقة أساس ناقصة، بنقوّيها بجزء قصير وبنرجع لنفس مكانك بالدرس.', en: 'When a foundation link is missing, a short part strengthens it and brings the learner back to the same place.' } },
+  { icon: 'flask', title: { ar: 'Grow · ننمّي', en: 'Grow' }, note: { ar: 'تعلّم مستقل ومستمر: يجرّب، يعلّم نور، ويطبّق على موقف جديد.', en: 'Independent, continuing learning: test, teach Noor and apply to a new situation.' } },
 ];
 
 const FLOW: { title: L; note: L }[] = [
@@ -61,13 +67,13 @@ export function Landing() {
           <div className="stack !gap-5">
             <div className="row !flex-nowrap items-end">
               <Noor mood="curious" size={74} float />
-              <p className="lp-motto">{t({ ar: 'صف واحد، عقول مختلفة، واكتشاف مشترك.', en: 'One class, different minds, a shared discovery.' })}</p>
+              <p className="lp-motto">{t({ ar: 'حتى لو انقطع الدوام، تظل سلسلة التعلّم مستمرة.', en: 'Reconnecting the Missing Links in Education' })}</p>
             </div>
             <h1>{t({ ar: 'خلّي التفكير', en: 'Make Thinking' })} <span>{t({ ar: 'يبيّن', en: 'Visible' })}</span></h1>
             <p className="lead">
               {t({
-                ar: 'احكي فكرتك لنور. شوف كيف بتصير فرضية، وجرّبها لحالك أو مع صفّك.',
-                en: 'Share an idea with Noor. See it become a hypothesis you can test on your own or together with your class.',
+                ar: 'للطالب: استدراك التعلّم مع نور. للمعلّم: قرار مبني على الفهم، مش على الحدس.',
+                en: 'For the learner: recovering learning with Noor. For the teacher: a decision based on understanding, not a guess.',
               })}
             </p>
             <nav className="lp-entries" aria-label={t({ ar: 'ابدأ', en: 'Start' })}>
@@ -81,6 +87,30 @@ export function Landing() {
           </div>
           <ThoughtLab />
         </div>
+
+        <section className="lp-section" aria-labelledby="pillars-h">
+          <h2 id="pillars-h" className="title">{t({ ar: 'ثلاث ركائز', en: 'Three pillars' })}</h2>
+          <div className="lp-two" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(15rem,1fr))' }}>
+            {PILLARS.map((p) => <article key={p.title.en} className="card stack !gap-2">
+              <span className="chip chip-brand self-start"><Icon name={p.icon} size={14} />{t(p.title)}</span>
+              <p>{t(p.note)}</p>
+            </article>)}
+          </div>
+          <p className="muted text-[14px]">{t({ ar: 'علوم ورياضيات، صفوف ٣–٦ حسب الدرس. ست حزم مفاهيم، وما بنادّعي تغطية المنهاج.', en: 'Science and mathematics, grades 3–6 depending on the lesson. Six concept packs; we do not claim curriculum coverage.' })}</p>
+        </section>
+
+        <section className="lp-section" aria-labelledby="why-h">
+          <h2 id="why-h" className="title">{t({ ar: 'ليش سلسلة في فلسطين؟', en: 'Why Silsila in Palestine?' })}</h2>
+          <p>{t({ ar: 'لما يتقلّص الدوام أو ينقطع، ممكن ما يلحق بعض الطلاب يتعلّموا المفاهيم الأساسية. ولما يرجع الطالب للمدرسة، ممكن المعلّم يبدأ درس جديد على أساس إنه الأساسيات مفهومة، ومستوى الفهم بين الطلاب مختلف.', en: 'When school time is cut or interrupted, some learners may not get enough chance to learn the basic concepts. When they return, a teacher may start a new lesson that assumes those basics, while understanding differs between learners.' })}</p>
+          <ul className="lp-list">
+            <li><Icon name="check" size={18} />{t({
+              ar: 'البنك الدولي، Economic Update on the West Bank and Gaza، أيار 2026، ص ١٩: انخفاض أيام التعليم الوجاهي في المدارس الحكومية بالضفة الغربية من أربعة إلى ثلاثة أيام بالأسبوع. هذا ما بيعني إنه كل المدارس بتتبع نفس الجدول اليوم.',
+              en: 'World Bank, Economic Update on the West Bank and Gaza, May 2026, p. 19: in-person days in public schools in the West Bank fell from four to three a week. This does not mean every school follows the same schedule today.',
+            })}</li>
+            <li><Icon name="check" size={18} />{t({ ar: 'اليونيسف، التقرير السنوي لفلسطين ٢٠٢٥ (نُشر ٢٠٢٦).', en: 'UNICEF, State of Palestine annual report 2025 (published 2026).' })}</li>
+          </ul>
+          <p className="muted text-[13px]">{t({ ar: 'هاي مصادر للحاجة العامة، وما هي دليل على فعالية تطبيقنا. وما بنادّعي تعويض ساعات الدراسة ولا استبدال المعلّم.', en: 'These sources describe the general need. They are not evidence that our app works, and we do not claim to replace lost study hours or the teacher.' })}</p>
+        </section>
 
         <Collective />
         <section className="lp-section" aria-labelledby="flow-h">
