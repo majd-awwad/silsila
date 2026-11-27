@@ -126,7 +126,7 @@ export function JudgeApp(_: { path?: string[] }) {
                     </button>
                   </>}
                 {chip(status.tts, t({ ar: 'صوت سحابي', en: 'Cloud voice' }), t({ ar: 'صوت المتصفح', en: 'Browser voice' }))}
-                {chip(status.store === 'redis', t({ ar: 'تخزين Redis', en: 'Redis store' }), t({ ar: 'صف حي على هاللابتوب', en: 'Live room on this laptop' }))}
+                {chip(status.store === 'redis' || status.store === 'file', status.store === 'file' ? t({ ar: 'الصف الحي محفوظ بملف (بيضل بعد إعادة التشغيل)', en: 'Live room saved to a file (survives a restart)' }) : t({ ar: 'تخزين Redis', en: 'Redis store' }), t({ ar: 'صف حي بالذاكرة بس (بيضيع بإعادة التشغيل)', en: 'Live room in memory only (lost on restart)' }))}
               </>
             )}
           </div>

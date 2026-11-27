@@ -25,6 +25,7 @@ const SECRET_TEXT = 'المي بتنز من الكاسة يا معلمتي';
 beforeEach(() => {
   for (const k of ['OPENROUTER_API_KEY', 'LLM_API_KEY', 'LLM_BASE_URL', 'STT_MODEL', 'TTS_MODEL', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'KV_REST_API_URL', 'KV_REST_API_TOKEN', 'VERCEL']) vi.stubEnv(k, '');
   vi.stubEnv('LLM_MODEL', 'test/model');
+  vi.stubEnv('SILSILA_STORE', 'memory');
   vi.stubGlobal('fetch', async () => { throw new Error('unexpected network call'); });
   vi.spyOn(console, 'error').mockImplementation(() => {});
   resetLimits();

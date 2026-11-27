@@ -1,7 +1,9 @@
 /**
  * Live classroom storage. With UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (or Vercel's KV_REST_API_URL +
  * KV_REST_API_TOKEN) rooms live in Upstash Redis and are shared by all serverless instances. Without them they
- * live in memory: right for one laptop (`npm run dev -- --host`), not available on Vercel.
+ * live in memory, written to a local file after every committed change (.data/rooms.json, or SILSILA_DATA_DIR), so a
+ * laptop restart keeps the rooms, the learners and the teacher's key. SILSILA_STORE=memory turns the file off (tests).
+ * Not available on Vercel, where a file would not be shared between instances.
  *
  * A room is one «head» document (meta, key hashes, revision) plus one entry per participant, so a learner's write
  * rewrites that learner only. Every change runs under a per-room lock: a promise chain inside this process, and in
@@ -13,6 +15,8 @@
  *   silsila:room:CODE:lock   lock token
  */
 import { randomBytes } from 'node:crypto';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { RoomMeta, RoomParticipant } from '../src/contracts';
 
 export interface Head {
@@ -34,7 +38,7 @@ export interface Change<T> {
 }
 
 export interface RoomStore {
-  kind: 'memory' | 'redis';
+  kind: 'memory' | 'file' | 'redis';
   /** false when the code is already in use */
   create(head: Head): Promise<boolean>;
   /** null when there is no such room or it has expired */
@@ -81,30 +85,78 @@ function live(code: string): Snapshot | null {
   return s;
 }
 
-const memory: RoomStore = {
-  kind: 'memory',
-  async create(head) {
-    for (const code of rooms.keys()) live(code);
-    if (rooms.has(head.meta.code)) return false;
-    if (rooms.size >= MAX_MEMORY_ROOMS) throw new Error('store_full');
-    rooms.set(head.meta.code, { head, participants: [] });
-    return true;
-  },
-  async head(code) {
-    return live(code)?.head ?? null;
-  },
-  async read(head) {
-    return live(head.meta.code);
-  },
-  update(code, change) {
-    return inTurn(code, async () => {
-      const snapshot = live(code);
-      const { value, commit } = change(snapshot);
-      if (commit && snapshot) rooms.set(code, { head: nextHead(snapshot.head, commit), participants: commit.participants });
-      return value;
-    });
-  },
-};
+/* ───────────────────────── file (local laptop) ───────────────────────── */
+
+const dataFile = () => join(process.env.SILSILA_DATA_DIR || '.data', 'rooms.json');
+const state = globalThis as unknown as { __silsilaRoomsLoaded?: boolean };
+
+/** Read the file once per process. A damaged file is set aside, never overwritten blindly. */
+function loadFile(): void {
+  if (state.__silsilaRoomsLoaded) return;
+  state.__silsilaRoomsLoaded = true;
+  let raw: string;
+  try { raw = readFileSync(dataFile(), 'utf8'); } catch { return; }
+  try {
+    const list = JSON.parse(raw) as [string, Snapshot][];
+    for (const [code, snapshot] of list) if (!expired(snapshot.head) && !rooms.has(code)) rooms.set(code, snapshot);
+  } catch {
+    try { renameSync(dataFile(), dataFile() + '.damaged-' + Date.now()); } catch { /* keep going in memory */ }
+  }
+}
+
+/** Temp file, then rename: a crash in the middle leaves the previous complete file. */
+function saveFile(): void {
+  try {
+    const file = dataFile();
+    mkdirSync(join(file, '..'), { recursive: true });
+    const live = [...rooms.entries()].filter(([, s]) => !expired(s.head));
+    const temp = `${file}.${process.pid}.tmp`;
+    writeFileSync(temp, JSON.stringify(live));
+    renameSync(temp, file);
+  } catch (e) {
+    // the room still works from memory; say why it will not survive a restart
+    console.error('room file not written:', e instanceof Error ? e.message : 'unknown');
+  }
+}
+
+function local(kind: 'memory' | 'file'): RoomStore {
+  const persist = kind === 'file';
+  return {
+    kind,
+    async create(head) {
+      if (persist) loadFile();
+      for (const code of rooms.keys()) live(code);
+      if (rooms.has(head.meta.code)) return false;
+      if (rooms.size >= MAX_MEMORY_ROOMS) throw new Error('store_full');
+      rooms.set(head.meta.code, { head, participants: [] });
+      if (persist) saveFile();
+      return true;
+    },
+    async head(code) {
+      if (persist) loadFile();
+      return live(code)?.head ?? null;
+    },
+    async read(head) {
+      if (persist) loadFile();
+      return live(head.meta.code);
+    },
+    update(code, change) {
+      if (persist) loadFile();
+      return inTurn(code, async () => {
+        const snapshot = live(code);
+        const { value, commit } = change(snapshot);
+        if (commit && snapshot) {
+          rooms.set(code, { head: nextHead(snapshot.head, commit), participants: commit.participants });
+          if (persist) saveFile();
+        }
+        return value;
+      });
+    },
+  };
+}
+
+const memory = local('memory');
+const file = local('file');
 
 /* ───────────────────────── Upstash Redis (REST) ───────────────────────── */
 
@@ -248,15 +300,17 @@ const redis: RoomStore = {
 };
 
 /** null: hosted on Vercel without Redis, where memory would not be shared between instances. */
-export const storeKind = (): 'redis' | 'memory' | null => (config() ? 'redis' : process.env.VERCEL ? null : 'memory');
+export const storeKind = (): 'redis' | 'file' | 'memory' | null =>
+  config() ? 'redis' : process.env.VERCEL ? null : process.env.SILSILA_STORE === 'memory' ? 'memory' : 'file';
 
 export function roomStore(): RoomStore | null {
   const kind = storeKind();
-  return kind === 'redis' ? redis : kind === 'memory' ? memory : null;
+  return kind === 'redis' ? redis : kind === 'file' ? file : kind === 'memory' ? memory : null;
 }
 
 /** For tests. */
 export function resetStores(): void {
+  state.__silsilaRoomsLoaded = false;
   rooms.clear();
   queues.clear();
   cache.clear();
