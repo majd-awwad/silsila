@@ -17,6 +17,7 @@ import { buildReport, reportCSV, reportFileName, reportJSON } from './logic/repo
 import { Dashboard } from './pages/Dashboard';
 import { Library } from './pages/Library';
 import { NewSession } from './pages/NewSession';
+import { HomeworkBoard, HomeworkNew } from './pages/Homework';
 import { QuickCheck } from './pages/QuickCheck';
 import { Learners, LessonStudio, ActivityTab } from './pages/Tools';
 import { ChangeTab } from './room/ChangeTab';
@@ -156,6 +157,7 @@ export function TeacherApp({ path = [] }: { path?: string[] }) {
   switch (page) {
     case 'new': return <NewSession />;
     case 'quick': return <QuickCheck />;
+    case 'hw': return code ? <HomeworkBoard key={code} code={code.toUpperCase()} /> : <HomeworkNew />;
     case 'library': return <Library packId={code} />;
     case 'learners': return <Learners />;
     case 'studio': return <LessonStudio />;

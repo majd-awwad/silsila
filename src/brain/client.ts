@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 import type {
-  ActivityPlan, ActivityRequest, BrainContext, Diagnosis, Health, Lang, LessonDraft, LessonInput, RoomError, RoomRequest,
+  ActivityPlan, ActivityRequest, BrainContext, Diagnosis, Health, Lang, LearnerRecord, LessonDraft, LessonInput, RoomError, RoomRequest,
   RoomSettings, RoomView, StudentOp, StudentRoomView, TeacherOp, TeacherRoomView, TeachResult, TransferResult,
 } from '../contracts';
 import {
@@ -189,5 +189,10 @@ export const roomApi = {
       return { ok: true, data: viewFor(pack, data, 'student', seat.participantId) as StudentRoomView };
     }
     return room<StudentRoomView>({ action: 'student', code, participantId: seat.participantId, key: seat.key, op }, 30_000);
+  },
+
+  /** homework: hand in this device's lesson record */
+  async submit(code: string, seat: Seat, record: LearnerRecord): Promise<Result<StudentRoomView>> {
+    return room<StudentRoomView>({ action: 'submit', code, participantId: seat.participantId, key: seat.key, record }, 30_000);
   },
 };

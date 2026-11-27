@@ -21,7 +21,7 @@ export function clientIp(request: Request): string {
   return ip.slice(0, 64);
 }
 
-export type Body = { ok: true; value: unknown } | { ok: false; status: 400 | 413 | 415 };
+export type Body = { ok: true; value: unknown; bytes: number } | { ok: false; status: 400 | 413 | 415 };
 
 /** Read a JSON body without ever holding more than `max` bytes of it. */
 export async function readBody(request: Request, max: number): Promise<Body> {
@@ -46,7 +46,7 @@ export async function readBody(request: Request, max: number): Promise<Body> {
     const all = new Uint8Array(size);
     let at = 0;
     for (const c of chunks) { all.set(c, at); at += c.byteLength; }
-    return { ok: true, value: JSON.parse(new TextDecoder().decode(all)) };
+    return { ok: true, value: JSON.parse(new TextDecoder().decode(all)), bytes: size };
   } catch {
     return { ok: false, status: 400 };
   }

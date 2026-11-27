@@ -74,7 +74,7 @@ export const QUICK_STEPS: { label: L; phases: Phase[] }[] = [
   { label: { ar: 'قرار المعلّم', en: "The teacher's decision" }, phases: ['map'] },
 ];
 /** Still a quick check: it turns into a discovery lesson as soon as the teacher moves past the class map. */
-export const isQuickNow = (meta: { settings: { kind?: 'quick' | 'discovery' }; phase: Phase }): boolean =>
+export const isQuickNow = (meta: { settings: { kind?: 'quick' | 'discovery' | 'homework' }; phase: Phase }): boolean =>
   meta.settings.kind === 'quick' && ['lobby', 'explain', 'map'].includes(meta.phase);
 export const stepsFor = (meta: Parameters<typeof isQuickNow>[0]) => (isQuickNow(meta) ? QUICK_STEPS : CLASS_STEPS);
 export const classStep = (phase: Phase): number => Math.max(0, CLASS_STEPS.findIndex((s) => s.phases.includes(phase)));

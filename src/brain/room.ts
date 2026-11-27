@@ -34,10 +34,15 @@ export const atLeast = (p: Phase, min: Phase) => phaseIndex(p) >= phaseIndex(min
 const ok = (data: RoomData): RoomResult => ({ ok: true, data });
 const fail = (error: RoomError): RoomResult => ({ ok: false, error });
 
+/** A homework room stays readable for a week after its due time (at most 30 days from now); other rooms last six hours. */
+export const HOMEWORK_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+export const expiryFor = (settings: RoomSettings, now: number): number =>
+  settings.kind === 'homework' && settings.dueAt ? Math.min(settings.dueAt + HOMEWORK_GRACE_MS, now + 30 * 24 * 60 * 60 * 1000) : now + ROOM_TTL_MS;
+
 export function newRoom(code: string, settings: RoomSettings, now = Date.now(), sample = false): RoomData {
   return {
     meta: {
-      code, settings, createdAt: now, expiresAt: now + ROOM_TTL_MS, phase: 'lobby', phaseAt: now,
+      code, settings, createdAt: now, expiresAt: expiryFor(settings, now), phase: 'lobby', phaseAt: now,
       experimentId: null, rejected: [], done: [], closed: false, sample,
     },
     participants: [],
@@ -161,6 +166,27 @@ export function studentOp(pack: ConceptPack, data: RoomData, participantId: stri
       }));
     }
   }
+}
+
+/**
+ * Homework: the learner hands in the lesson they did on their own device. The server keeps the evidence but not the
+ * identity the device claimed (id, alias, room code come from the seat), drops anything teacher-only, and refuses after
+ * the due time. Handing in again before the due time replaces the earlier version. The evidence is the device's own:
+ * this does not stop copying or a forged record.
+ */
+export function submitHomework(pack: ConceptPack, data: RoomData, participantId: string, record: LearnerRecord, now = Date.now()): RoomResult {
+  const { meta } = data;
+  if (meta.settings.kind !== 'homework' || !meta.settings.dueAt) return fail('bad_request');
+  if (meta.closed) return fail('room_closed');
+  if (now > meta.settings.dueAt) return fail('locked');
+  const person = data.participants.find((p) => p.id === participantId);
+  if (!person) return fail('forbidden');
+  if (record.pack !== pack.id || !record.events.some((e) => e.type === 'explain')) return fail('bad_request');
+  const clean: LearnerRecord = {
+    ...record, id: person.id, alias: person.alias, classCode: meta.code, sample: false,
+    events: record.events.filter((e) => e.type !== 'review').slice(-200),
+  };
+  return ok({ ...data, participants: data.participants.map((p) => (p.id === participantId ? { ...p, record: clean, submittedAt: now } : p)) });
 }
 
 /** When the teacher shows the result, every learner's log gets what happened next to what they expected. */

@@ -15,7 +15,7 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto
 import { RoomRequest } from '../src/contracts';
 import type { RoomError, RoomSettings, StudentOp } from '../src/contracts';
 import { eventsOf } from '../src/brain/records';
-import { addParticipant, checkStudentOp, newRoom, PRESENCE_PULSE_MS, studentOp, teacherOp, viewFor } from '../src/brain/room';
+import { addParticipant, checkStudentOp, newRoom, PRESENCE_PULSE_MS, studentOp, submitHomework, teacherOp, viewFor } from '../src/brain/room';
 import type { Analysis, RoomData } from '../src/brain/room';
 import { SAMPLE_CODE } from '../src/brain/sample';
 import { RESOURCE_IDS } from '../src/packs/resources';
@@ -225,9 +225,36 @@ async function student(store: RoomStore, req: Request_<'student'>, ip: string): 
   }));
 }
 
+/** Homework hand-in: one learner's lesson record, validated by the contract and re-checked by submitHomework. */
+async function submit(store: RoomStore, req: Request_<'submit'>, ip: string): Promise<Response> {
+  const busy = take('roomStudent', ip);
+  if (busy) return limited(busy);
+  const head = await store.head(req.code);
+  if (!head) return refuse('no_room');
+  if (!isSeat(head, req.participantId, req.key)) return refuse('forbidden');
+  const eager = take('roomSeat', `${req.code}:${req.participantId}`);
+  if (eager) return limited(eager);
+  const pack = packById(head.meta.settings.pack);
+  if (!pack) return refuse('bad_request');
+  return reply(await store.update<Outcome>(req.code, (snapshot) => {
+    if (!snapshot) return { value: { error: 'no_room' } };
+    if (!isSeat(snapshot.head, req.participantId, req.key)) return { value: { error: 'forbidden' } };
+    const r = submitHomework(pack, dataOf(snapshot), req.participantId, req.record);
+    if (!r.ok) return { value: { error: r.error } };
+    const version = versionFor(snapshot.head.rev + 1, r.data.meta.createdAt);
+    return {
+      value: { view: { ...viewFor(pack, r.data, 'student', req.participantId), version } },
+      commit: { meta: r.data.meta, participants: r.data.participants, keys: snapshot.head.keys },
+    };
+  }));
+}
+
 export async function POST(request: Request): Promise<Response> {
-  const body = await readBody(request, 16_384);
+  // a hand-in carries a whole lesson record; every other request stays small
+  const body = await readBody(request, 262_144);
   if (!body.ok) return refuse('bad_request', body.status);
+  const handIn = (body.value as { action?: unknown } | null)?.action === 'submit';
+  if (body.bytes > 16_384 && !handIn) return refuse('bad_request', 413);
   const parsed = RoomRequest.safeParse(body.value);
   if (!parsed.success) return refuse('bad_request');
   const store = roomStore();
@@ -241,6 +268,7 @@ export async function POST(request: Request): Promise<Response> {
       case 'view': return await view(store, req, ip);
       case 'teacher': return await teacher(store, req, ip);
       case 'student': return await student(store, req, ip);
+      case 'submit': return await submit(store, req, ip);
     }
   } catch (e) {
     logError('room', e);

@@ -10,6 +10,7 @@ const TeacherApp = lazy(() => import('./features/teacher/TeacherApp').then((m) =
 const ScreenApp = lazy(() => import('./features/screen/ScreenApp').then((m) => ({ default: m.ScreenApp })));
 const Passport = lazy(() => import('./features/passport/Passport').then((m) => ({ default: m.Passport })));
 const Vision = lazy(() => import('./features/judge/Vision').then((m) => ({ default: m.Vision })));
+const HomeworkJoin = lazy(() => import('./features/homework/HomeworkJoin').then((m) => ({ default: m.HomeworkJoin })));
 const JudgeApp = lazy(() => import('./features/judge/JudgeApp').then((m) => ({ default: m.JudgeApp })));
 
 function NotFound() {
@@ -36,6 +37,7 @@ export default function App() {
       case 'screen': return <ScreenApp code={rest[0]?.toUpperCase() ?? null} />;
       case 'judge': return rest[0] === 'vision' ? <Vision /> : <JudgeApp path={rest} />;
       case 'passport': return <Passport />;
+      case 'hw': return <HomeworkJoin code={rest[0]?.toUpperCase() ?? null} />;
       default: return <NotFound />;
     }
   };

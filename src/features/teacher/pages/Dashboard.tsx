@@ -49,7 +49,7 @@ function RoomRow({ room, onForget }: { room: TeacherRoom; onForget: () => void }
         {view && error && <span className="text-probe-ink text-[13px]" role="status">{t(ROOM_ERROR[error])} {t({ ar: 'الأرقام من آخر اتصال.', en: 'Numbers are from the last connection.' })}</span>}
       </div>
       <div className="row">
-        <a className="btn btn-primary btn-sm" href={href(`/teacher/room/${room.code}`)}>{view?.meta.closed ? t({ ar: 'عرض أدلة الحصة', en: 'View class evidence' }) : t({ ar: 'استئناف الحصة', en: 'Resume lesson' })}</a>
+        <a className="btn btn-primary btn-sm" href={href(view?.meta.settings.kind === 'homework' ? `/teacher/hw/${room.code}` : `/teacher/room/${room.code}`)}>{view?.meta.closed ? t({ ar: 'عرض أدلة الحصة', en: 'View class evidence' }) : t({ ar: 'استئناف الحصة', en: 'Resume lesson' })}</a>
         <a className="btn btn-secondary btn-sm" href={href(`/screen/${room.code}`)} target="_blank" rel="noreferrer"><Icon name="screen" size={16} />{t({ ar: 'الشاشة', en: 'Projector' })}</a>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onForget} aria-label={t({ ar: `شيلوا الصف ${room.code} من هالجهاز`, en: `Remove room ${room.code} from this device` })}>
           <Icon name="trash" size={16} />
@@ -131,6 +131,7 @@ export function Dashboard() {
   };
 
   const links: { to: string; icon: IconName; title: string; body: string }[] = [
+    { to: '/teacher/hw', icon: 'edit', title: t({ ar: 'واجب ذاتي الوتيرة (نسخة مصغّرة)', en: 'Self-paced homework (smaller version)' }), body: t({ ar: 'درس فردي بموعد تسليم ورابط، والأدلة بترجعلك.', en: 'An individual lesson with a due time and a link; the evidence comes back to you.' }) },
     { to: '/teacher/library', icon: 'book', title: t({ ar: 'مكتبة المفاهيم', en: 'Concept library' }), body: t({ ar: 'السؤال، الأفكار المتوقّعة، التجارب، والنموذج العلمي لكل درس.', en: 'Question, likely ideas, experiments and reference model for each lesson.' }) },
     { to: '/teacher/studio', icon: 'edit', title: t({ ar: 'استوديو الدروس', en: 'Lesson studio' }), body: t({ ar: 'مسودة درس لأي موضوع، بتراجعوها وبتعدّلوها.', en: 'A lesson draft for any topic, for you to review and edit.' }) },
     { to: '/teacher/learners', icon: 'people', title: t({ ar: 'المتعلّمين', en: 'Learners' }), body: t({ ar: 'تقرير كل درس فردي محفوظ على هالجهاز.', en: 'A report for each individual lesson saved on this device.' }) },

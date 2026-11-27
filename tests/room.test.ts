@@ -2,9 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import { heuristicDiagnose, heuristicTransfer } from '../src/brain/heuristic';
 import { normaliseDiagnosis } from '../src/brain/normalise';
-import { eventsOf } from '../src/brain/records';
+import { addEvent, eventsOf, newRecord } from '../src/brain/records';
 import {
-  addParticipant, checkStudentOp, GAP_PHASES, MAX_PARTICIPANTS, newRoom, screenView, studentOp, studentView, teacherOp, teacherView,
+  addParticipant, checkStudentOp, GAP_PHASES, MAX_PARTICIPANTS, newRoom, screenView, studentOp, studentView, submitHomework, teacherOp, teacherView,
 } from '../src/brain/room';
 import type { Analysis, RoomData, RoomResult } from '../src/brain/room';
 import { sampleRoom, sampleSettings, sampleTeacherOp } from '../src/brain/sample';
@@ -321,5 +321,51 @@ describe('teacher review stays private', () => {
     expect(JSON.stringify(studentView(pack, d, 'pid-secret-1'))).not.toContain('"review"');
     expect(JSON.stringify(screenView(pack, d))).not.toContain('"review"');
     expect(JSON.stringify(teacherView(d))).toContain('"review"');
+  });
+});
+
+describe('homework hand-in', () => {
+  const pack = getPack('condensation');
+  const due = Date.now() + 3600_000;
+  const room = (): RoomData => {
+    let d = newRoom('HWTEST', { ...sampleSettings(pack, 'en'), kind: 'homework', dueAt: due });
+    d = must(addParticipant(d, 'pid-hw-1', 'Mina'));
+    return must(addParticipant(d, 'pid-hw-2', 'Sami'));
+  };
+  const lesson = (alias = 'device-alias') => {
+    const text = 'water comes out of the glass';
+    const diagnosis = diagnosisFor(pack, text, wrongIdeas(pack)[0]);
+    const r = newRecord({ id: 'device-id', pack: pack.id, alias, grade: 5, lang: 'en', sample: true });
+    return addEvent(addEvent(r, { type: 'explain', at: 1, phase: 'initial', text, diagnosis }), { type: 'review', at: 2, outcome: 'unclear', auto: { status: 'misconception', ideas: [] } });
+  };
+
+  it('keeps the evidence but takes identity from the seat, and drops teacher-only events', () => {
+    const d = must(submitHomework(pack, room(), 'pid-hw-1', lesson(), 1000));
+    const p = d.participants[0];
+    expect([p.record.id, p.record.alias, p.record.classCode, p.record.sample]).toEqual(['pid-hw-1', 'Mina', 'HWTEST', false]);
+    expect(p.submittedAt).toBe(1000);
+    expect(eventsOf(p.record, 'explain')).toHaveLength(1);
+    expect(eventsOf(p.record, 'review')).toHaveLength(0);
+    expect(d.participants[1].submittedAt).toBeUndefined();
+  });
+
+  it('may be handed in again before the due time, and closes after it without deleting anything', () => {
+    let d = must(submitHomework(pack, room(), 'pid-hw-1', lesson(), 1000));
+    d = must(submitHomework(pack, d, 'pid-hw-1', lesson(), 2000));
+    expect(d.participants[0].submittedAt).toBe(2000);
+    const late = submitHomework(pack, d, 'pid-hw-2', lesson(), due + 1);
+    expect(late).toEqual({ ok: false, error: 'locked' });
+    expect(d.participants[0].record.events.length).toBeGreaterThan(0);
+  });
+
+  it('refuses a lesson of another pack, one without an explanation, an unknown seat and a non-homework room', () => {
+    expect(submitHomework(pack, room(), 'pid-hw-1', { ...lesson(), pack: 'fractions' }, 1)).toEqual({ ok: false, error: 'bad_request' });
+    expect(submitHomework(pack, room(), 'pid-hw-1', newRecord({ id: 'x', pack: pack.id, alias: 'x', grade: 5, lang: 'en' }), 1)).toEqual({ ok: false, error: 'bad_request' });
+    expect(submitHomework(pack, room(), 'nobody', lesson(), 1)).toEqual({ ok: false, error: 'forbidden' });
+    expect(submitHomework(pack, classroom(pack), 'pid-secret-1', lesson(), 1)).toEqual({ ok: false, error: 'bad_request' });
+  });
+
+  it('keeps the room readable for a week after the due time', () => {
+    expect(room().meta.expiresAt).toBe(due + 7 * 24 * 3600_000);
   });
 });

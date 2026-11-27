@@ -62,3 +62,36 @@ describe('file store', () => {
     expect((await call(room, { action: 'create', settings })).status).toBe(200);
   });
 });
+
+describe('homework over the API', () => {
+  it('accepts a full lesson record from a seat, survives a restart, and closes after the due time', async () => {
+    const due = Date.now() + 3600_000;
+    const made = (await call(room, { action: 'create', settings: { ...settings, kind: 'homework', dueAt: due } })).body as { code: string; teacherKey: string };
+    const seat = (await call(room, { action: 'join', code: made.code, alias: 'منى' })).body as { participantId: string; key: string };
+    const { normaliseDiagnosis } = await import('../src/brain/normalise');
+    const { addEvent, newRecord } = await import('../src/brain/records');
+    const { getPack } = await import('../src/packs');
+    const pack = getPack('condensation');
+    const text = 'المي بتنز من جوا الكاسة ' + 'كلام '.repeat(40);
+    const d = normaliseDiagnosis(pack, { relevance: 'answer', ideas: [{ id: 'inside_water', evidence: 'المي بتنز من جوا الكاسة' }], steps: [] }, text, { pack: pack.id, lang: 'ar', previous: [] }, { source: 'fallback' });
+    let record = newRecord({ id: 'x', pack: pack.id, alias: 'x', grade: 5, lang: 'ar' });
+    for (let i = 0; i < 30; i++) record = addEvent(record, { type: 'explain', at: i + 1, phase: i ? 'clarify' : 'initial', text, diagnosis: d });
+    const sent = await call(room, { action: 'submit', code: made.code, participantId: seat.participantId, key: seat.key, record });
+    expect(sent.status).toBe(200);
+    // a wrong key cannot hand in for this seat
+    expect((await call(room, { action: 'submit', code: made.code, participantId: seat.participantId, key: 'nope', record })).status).toBe(403);
+    resetStores();
+    const teacher = await call(room, { action: 'view', code: made.code, role: 'teacher', teacherKey: made.teacherKey });
+    expect(teacher.body.participants[0].submittedAt).toBeGreaterThan(0);
+    expect(teacher.body.participants[0].record.alias).toBe('منى');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(due + 60_000);
+    const late = await call(room, { action: 'submit', code: made.code, participantId: seat.participantId, key: seat.key, record });
+    vi.useRealTimers();
+    expect(late.status).toBe(409);
+    expect(late.body.error).toBe('locked');
+    // other requests stay small
+    const big = await call(room, { action: 'join', code: made.code, alias: 'x', pad: 'y'.repeat(40_000) });
+    expect(big.status).toBe(413);
+  });
+});

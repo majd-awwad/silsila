@@ -235,7 +235,9 @@ export const RoomSettings = z.object({
   objective: z.string().nullable(),
   mode: ExperimentMode.optional(),
   /** quick = a 5–10 minute understanding check that ends in a decision; discovery (default) = the full lesson */
-  kind: z.enum(['quick', 'discovery']).optional(),
+  kind: z.enum(['quick', 'discovery', 'homework']).optional(),
+  /** homework only: submissions close at this time (ms since epoch); nothing is deleted when it passes */
+  dueAt: z.number().int().optional(),
   accessibility: z.array(z.enum(['visual', 'hearing', 'reading', 'motor'])).max(4).optional(),
 });
 export type RoomSettings = z.infer<typeof RoomSettings>;
@@ -260,7 +262,9 @@ export const RoomMeta = z.object({
 });
 export type RoomMeta = z.infer<typeof RoomMeta>;
 
-export const RoomParticipant = z.object({ id: z.string(), alias: z.string(), joinedAt: z.number(), lastSeenAt: z.number().optional(), record: LearnerRecord });
+export const RoomParticipant = z.object({ id: z.string(), alias: z.string(), joinedAt: z.number(), lastSeenAt: z.number().optional(), record: LearnerRecord,
+  /** homework only: when this learner last handed in */
+  submittedAt: z.number().optional() });
 export type RoomParticipant = z.infer<typeof RoomParticipant>;
 
 export const TeacherOp = z.discriminatedUnion('type', [
@@ -300,6 +304,8 @@ export const RoomRequest = z.discriminatedUnion('action', [
   }),
   z.object({ action: z.literal('teacher'), code: Code, teacherKey: z.string().max(80), op: TeacherOp }),
   z.object({ action: z.literal('student'), code: Code, participantId: z.string().max(60), key: z.string().max(80), op: StudentOp }),
+  /** homework: hand in the individual lesson record made on the learner's own device */
+  z.object({ action: z.literal('submit'), code: Code, participantId: z.string().max(60), key: z.string().max(80), record: LearnerRecord }),
 ]);
 export type RoomRequest = z.infer<typeof RoomRequest>;
 

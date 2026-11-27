@@ -6,6 +6,7 @@ import { journeyReducer, startJourney, STEPS } from '../../flow/journey';
 import type { Action, Journey, Step } from '../../flow/journey';
 import { useI18n } from '../../i18n';
 import { isJudgeMode } from '../../mode';
+import { HomeworkBar } from '../homework/HomeworkBar';
 import { PACK_LIST, PACKS } from '../../packs';
 import { href, useRoute } from '../../router';
 import { ReasonChain, ThinkingReplay } from '../../ui/Evidence';
@@ -49,10 +50,11 @@ function milestone(step: Step) {
 export function StudentApp({ path = [] }: { path?: string[] }) {
   const { query } = useRoute();
   const requested = path[0] ?? query.get('pack');
-  return <LessonEntry key={requested ?? ''} requested={requested} quick={query.get('quick') === '1'} judge={isJudgeMode(query)} />;
+  const homework = /^[A-Z2-9]{6}$/.test((query.get('hw') ?? '').toUpperCase()) ? query.get('hw')!.toUpperCase() : null;
+  return <LessonEntry key={requested ?? ''} requested={requested} quick={query.get('quick') === '1'} judge={isJudgeMode(query)} homework={homework} />;
 }
 
-function LessonEntry({ requested, quick, judge }: { requested: string | null; quick: boolean; judge: boolean }) {
+function LessonEntry({ requested, quick, judge, homework }: { requested: string | null; quick: boolean; judge: boolean; homework: string | null }) {
   const { lang, t, n } = useI18n();
   const [restored, setRestored] = useState<Awaited<ReturnType<typeof loadLessons>>>();
   const current = useRef<Journey | null>(null);
@@ -199,6 +201,7 @@ function LessonEntry({ requested, quick, judge }: { requested: string | null; qu
     <Shell actions={<><VoiceToggle /><button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm(pack.id)} disabled={busy}>
       {t({ ar: 'ابدأ من جديد', en: 'Start over' })}
     </button></>}>
+      {homework && <HomeworkBar code={homework} record={record} />}
       <ChainProgress steps={progress} current={milestone(journey.step)} />
       {storageNotice}
       <SoloDraftContext.Provider value={{ prefix: record.id + ':' + journey.step + ':' + record.events.filter((event) => event.type !== 'assist').length, write: writeDraft }}>
