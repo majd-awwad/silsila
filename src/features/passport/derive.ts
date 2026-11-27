@@ -17,6 +17,8 @@ export interface PassportPack {
   /** lessons of this pack done on this device */
   attempts: number;
   lastAt: number;
+  /** the latest lesson reached its summary; otherwise it was left unfinished */
+  finished: boolean;
   concepts: PassportConcept[];
 }
 export interface ReviewStep { pack: ConceptPack; reason: L; part: L | null; fromPack: ConceptPack | null }
@@ -33,7 +35,7 @@ export function passportOf(records: LearnerRecord[]): PassportPack[] {
     if (!latest) return [];
     const dna = learningDNA(pack, latest);
     return [{
-      pack, attempts: records.filter((r) => r.pack === pack.id && isEvidence(r)).length, lastAt: latest.startedAt,
+      pack, attempts: records.filter((r) => r.pack === pack.id && isEvidence(r)).length, lastAt: latest.startedAt, finished: latest.finishedAt !== null,
       concepts: CHAIN_IDS.map((id) => ({ id, label: pack.concepts[id].label, status: dna[id].status })),
     }];
   });

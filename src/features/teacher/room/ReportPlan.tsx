@@ -6,6 +6,7 @@ import { useI18n } from '../../../i18n';
 import type { ConceptPack } from '../../../packs/types';
 import { absoluteLink } from '../../../router';
 import { boardKey, currentBoard, loadBoard } from '../logic/groups';
+import { learnersLabel } from '../logic/labels';
 import { DEFAULT_MINUTES, followUpCards, planAsText, remedialPlan } from '../logic/remedial';
 import type { PlanPart } from '../logic/remedial';
 
@@ -40,7 +41,7 @@ export function ReportPlan({ pack, view, records }: { pack: ConceptPack; view: T
             </label>
           </div>
           <ul className="stack !gap-1">{p.lines.map((l, i) => <li key={i}>{t(l)}</li>)}</ul>
-          {p.groupIds.length > 0 && <p className="help">{t({ ar: `مربوط بـ ${n(p.learners)} طلاب: `, en: `Linked to ${p.learners} learners: ` })}{p.groupIds.map((id) => { const x = titleOf(id); return x ? t(x) : ''; }).filter(Boolean).join(' · ')}</p>}
+          {p.groupIds.length > 0 && <p className="help">{t({ ar: `مربوط بـ ${learnersLabel('ar', p.learners, n)}: `, en: `Linked to ${learnersLabel('en', p.learners, n)}: ` })}{p.groupIds.map((id) => { const x = titleOf(id); return x ? t(x) : ''; }).filter(Boolean).join(' · ')}</p>}
           {p.evidence && <blockquote className="tc-quote" dir="auto">«{p.evidence}»</blockquote>}
         </li>)}
       </ol>
@@ -53,7 +54,7 @@ export function ReportPlan({ pack, view, records }: { pack: ConceptPack; view: T
         {cards.map((c) => {
           const link = absoluteLink(`/learn/${c.lessonPack}`);
           return <li key={c.groupId} className="card-flat stack !gap-1">
-            <strong>{t(c.title)} · {t({ ar: `${n(c.learners)} طلاب`, en: `${c.learners} learners` })}</strong>
+            <strong>{t(c.title)} · {learnersLabel(lang, c.learners, n)}</strong>
             <span><strong>{t({ ar: 'المفهوم اللي بدّه تقوية: ', en: 'Concept to strengthen: ' })}</strong>{t(c.concept)}</span>
             <span className="row"><strong>{t({ ar: 'رابط الدرس الفردي: ', en: 'Individual lesson link: ' })}</strong><bdi dir="ltr">{link}</bdi>
               <button type="button" className="btn btn-ghost btn-sm no-print" onClick={() => copy(c.groupId, link)}>{copied === c.groupId ? t({ ar: 'اننسخ', en: 'Copied' }) : t({ ar: 'انسخ الرابط', en: 'Copy link' })}</button></span>

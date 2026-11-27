@@ -40,3 +40,34 @@ describe('planner weights shown to the teacher', () => {
     expect(Object.values(WEIGHTS).reduce((a, b) => a + b, 0)).toBeCloseTo(1);
   });
 });
+
+describe('ties and Arabic counts', () => {
+  it('lists every tied group and never picks one at random', () => {
+    const d = quickDecision(pack, [learner('a', wrong[0]), learner('b', wrong[1])]);
+    expect(d.headline?.tied.map((i) => i.id).sort()).toEqual([`idea:${wrong[0]}`, `idea:${wrong[1]}`].sort());
+    expect(d.headline?.count).toBe(1);
+    expect(d.headline?.what.ar).toContain('تعادل');
+    // the same learners in another order give the same answer
+    const e = quickDecision(pack, [learner('b', wrong[1]), learner('a', wrong[0])]);
+    expect(e.headline?.tied.map((i) => i.id).sort()).toEqual(d.headline?.tied.map((i) => i.id).sort());
+  });
+
+  it('offers a shared question only when one experiment challenges all the tied ideas', async () => {
+    const { compare, conditionsFor } = await import('../src/brain/world');
+    const d = quickDecision(pack, [learner('a', wrong[0]), learner('b', wrong[1])]);
+    const shared = pack.experiments.find((x) => wrong.slice(0, 2).every((id) => compare(pack, pack.ideas[id].model, conditionsFor(pack, x.change)).contradicted));
+    expect(d.headline?.next ?? null).toEqual(shared?.question ?? null);
+  });
+
+  it('is a single answer when one group is bigger', () => {
+    const d = quickDecision(pack, [learner('a', wrong[0]), learner('b', wrong[0]), learner('c', wrong[1])]);
+    expect(d.headline?.tied).toEqual([]);
+  });
+
+  it('agrees the Arabic count with the noun', async () => {
+    const { learnersLabel } = await import('../src/features/teacher/logic/labels');
+    const n = (v: number) => String(v);
+    expect([1, 2, 3, 10, 11].map((c) => learnersLabel('ar', c, n))).toEqual(['طالب واحد', 'طالبين', '3 طلاب', '10 طلاب', '11 طالب']);
+    expect(learnersLabel('en', 1, n)).toBe('1 learner');
+  });
+});

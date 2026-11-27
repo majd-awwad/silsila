@@ -19,7 +19,7 @@ export function Passport() {
   }, []);
   const pass = records ? passportOf(records) : [];
   const review = records ? reviewPath(records) : [];
-  const done = new Set(pass.map((p) => p.pack.id));
+  const state = new Map(pass.map((p) => [p.pack.id, p.finished ? 'worked' : 'open'] as const));
   return <Shell>
     <div className="stack">
       <header className="stack !gap-1">
@@ -57,7 +57,7 @@ export function Passport() {
             <a className="btn btn-ghost btn-sm self-start" href={href(`/learn/${(r.fromPack ?? r.pack).id}`)}>{t({ ar: 'ابدأ المراجعة', en: 'Start the review' })}</a>
           </li>)}</ul> : <p className="muted">{t({ ar: 'ما في إشي لازم يتراجع حسب اللي ظهر لهلأ.', en: 'Nothing needs review from what has shown up so far.' })}</p>}
           <p className="help">{t({ ar: 'ترتيب الأفكار بالدروس:', en: 'How the lessons build on each other:' })}</p>
-          {PREREQUISITE_CHAINS.map((c) => <p key={c.subject} className="row !gap-2">{c.steps.map((s, i) => <span key={i} className={`chip ${s.pack && done.has(s.pack) ? 'chip-real' : ''}`}>{s.pack && done.has(s.pack) ? '✓ ' : ''}{t(s.label)}</span>)}</p>)}
+          {PREREQUISITE_CHAINS.map((c) => <p key={c.subject} className="row !gap-2">{c.steps.map((s, i) => <span key={i} className={`chip ${s.pack && state.get(s.pack) === 'worked' ? 'chip-brand' : ''}`}>{t(s.label)}{s.pack && state.get(s.pack) ? ' · ' + (state.get(s.pack) === 'worked' ? t({ ar: 'اشتغلت عليه', en: 'worked on' }) : t({ ar: 'لسا ما خلص', en: 'not finished yet' })) : ''}</span>)}</p>)}
         </section>
         <p className="help">{t({ ar: 'نقل الجواز بين مدارس أو حسابات مش موجود هلأ: رؤية مستقبلية بس. الصوت ما بنخزّنه، والأسماء مستعارة.', en: 'Moving a passport between schools or accounts does not exist yet: it is a future vision only. Audio is never stored and names are aliases.' })}</p>
       </>}

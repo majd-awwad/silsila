@@ -47,3 +47,11 @@ describe('vision page data', () => {
     expect(ROADMAP).toHaveLength(5);
   });
 });
+
+describe('passport lesson state', () => {
+  it('says unfinished until the lesson reaches its summary, and never claims mastery', () => {
+    const open = record('o', false, 'inside_water');
+    expect(passportOf([open])[0].finished).toBe(false);
+    expect(passportOf([{ ...open, finishedAt: 5 }])[0].finished).toBe(true);
+  });
+});

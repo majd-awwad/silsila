@@ -6,6 +6,7 @@
 import { interventionGroups } from '../../../brain/classInsights';
 import type { GroupKind } from '../../../brain/classInsights';
 import { initialDiagnosis } from '../../../brain/records';
+import { compare, conditionsFor } from '../../../brain/world';
 import type { L, LearnerRecord } from '../../../contracts';
 import type { ConceptPack } from '../../../packs/types';
 
@@ -29,8 +30,11 @@ export interface QuickDecision {
   total: number;
   waiting: number;
   items: DecisionItem[];
-  /** the one-line answer: what to explain again and for whom; null when nobody needs it */
-  headline: { what: L; count: number; next: L | null } | null;
+  /**
+   * the one-line answer: what to explain again and for whom; null when nobody needs it.
+   * `tied` lists every group when several are equally big: the teacher chooses, nothing is picked at random.
+   */
+  headline: { what: L; count: number; next: L | null; tied: DecisionItem[] } | null;
 }
 
 const NEEDS_HELP: GroupKind[] = ['gap', 'idea', 'clarify', 'followup'];
@@ -46,9 +50,24 @@ export function quickDecision(pack: ConceptPack, records: LearnerRecord[]): Quic
       question: x?.question ?? null, activity: x?.name ?? null,
     };
   });
-  const top = items.filter((i) => NEEDS_HELP.includes(i.kind)).sort((a, b) => b.members.length - a.members.length)[0];
-  return {
-    explained, total: mine.length, waiting: mine.length - explained, items,
-    headline: top ? { what: top.title, count: top.members.length, next: top.question ?? top.move } : null,
-  };
+  const needs = items.filter((i) => NEEDS_HELP.includes(i.kind));
+  const most = Math.max(0, ...needs.map((i) => i.members.length));
+  const tied = needs.filter((i) => i.members.length === most);
+  let headline: QuickDecision['headline'] = null;
+  if (tied.length === 1) headline = { what: tied[0].title, count: most, next: tied[0].question ?? tied[0].move, tied: [] };
+  else if (tied.length > 1) {
+    headline = {
+      what: { ar: 'تعادل: ' + tied.map((i) => i.title.ar).join(' · '), en: 'A tie: ' + tied.map((i) => i.title.en).join(' · ') },
+      count: most, next: sharedQuestion(pack, tied), tied,
+    };
+  }
+  return { explained, total: mine.length, waiting: mine.length - explained, items, headline };
+}
+
+/** One experiment's question that challenges every tied idea together, when the pack has such an experiment. */
+function sharedQuestion(pack: ConceptPack, tied: DecisionItem[]): L | null {
+  const ideas = tied.map((i) => (i.id.startsWith('idea:') ? pack.ideas[i.id.slice(5)] : null));
+  if (ideas.some((i) => !i)) return null;
+  const x = pack.experiments.find((e) => ideas.every((i) => compare(pack, i!.model, conditionsFor(pack, e.change)).contradicted));
+  return x?.question ?? null;
 }

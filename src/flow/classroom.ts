@@ -67,6 +67,16 @@ export const CLASS_STEPS: { label: L; phases: Phase[] }[] = [
   { label: { ar: 'شرح جديد', en: 'Explain again' }, phases: ['revise'] },
   { label: { ar: 'موقف جديد', en: 'A new situation' }, phases: ['transfer', 'insight'] },
 ];
+/** A quick check has three steps for the child: get ready, say the idea, wait for the teacher's decision. */
+export const QUICK_STEPS: { label: L; phases: Phase[] }[] = [
+  { label: { ar: 'استعداد', en: 'Getting ready' }, phases: ['lobby'] },
+  { label: { ar: 'فكرتك', en: 'Your idea' }, phases: ['explain'] },
+  { label: { ar: 'قرار المعلّم', en: "The teacher's decision" }, phases: ['map'] },
+];
+/** Still a quick check: it turns into a discovery lesson as soon as the teacher moves past the class map. */
+export const isQuickNow = (meta: { settings: { kind?: 'quick' | 'discovery' }; phase: Phase }): boolean =>
+  meta.settings.kind === 'quick' && ['lobby', 'explain', 'map'].includes(meta.phase);
+export const stepsFor = (meta: Parameters<typeof isQuickNow>[0]) => (isQuickNow(meta) ? QUICK_STEPS : CLASS_STEPS);
 export const classStep = (phase: Phase): number => Math.max(0, CLASS_STEPS.findIndex((s) => s.phases.includes(phase)));
 export const phaseOrder = (phase: Phase): number => PHASES.indexOf(phase);
 

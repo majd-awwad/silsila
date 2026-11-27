@@ -6,6 +6,15 @@ import type { ConceptPack, Subject } from '../../../packs/types';
 
 export const tr = (lang: Lang, ar: string, en: string): string => (lang === 'ar' ? ar : en);
 
+/** «طالب واحد»، «طالبين»، «٣ طلاب»، «١١ طالب»: the Arabic count agreement (and plain English). */
+export function learnersLabel(lang: Lang, count: number, n: (v: number) => string): string {
+  if (lang !== 'ar') return count === 1 ? '1 learner' : `${count} learners`;
+  if (count === 0) return 'ما حدا';
+  if (count === 1) return 'طالب واحد';
+  if (count === 2) return 'طالبين';
+  return count <= 10 ? `${n(count)} طلاب` : `${n(count)} طالب`;
+}
+
 /* ───────── hypothesis groups ───────── */
 
 /** The shape family of a group: always shown as a shape and a word, never as colour alone. */

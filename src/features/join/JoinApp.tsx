@@ -4,7 +4,7 @@ import type { Seat } from '../../brain/client';
 import { eventsOf, initialDiagnosis, lastEvent } from '../../brain/records';
 import { experimentById, experimentConditions } from '../../brain/world';
 import type { RoomError, StudentOp, StudentRoomView } from '../../contracts';
-import { CLASS_STEPS, FATAL_ERRORS, ROOM_MESSAGES, canSend, classStep, classTask, cleanCode, validCode } from '../../flow/classroom';
+import { FATAL_ERRORS, ROOM_MESSAGES, canSend, classTask, cleanCode, isQuickNow, stepsFor, validCode } from '../../flow/classroom';
 import { gapTask } from '../../flow/gaps';
 import { useI18n } from '../../i18n';
 import { PACKS } from '../../packs';
@@ -106,7 +106,7 @@ function ClassLesson({ code, seat, onLeave }: { code: string; seat: Seat; onLeav
         {problem && <Notice tone="warn">{poll.error && !fatal && !actionError ? t({ ar: 'تحديث الصف متوقّف مؤقتاً.', en: 'Classroom updates are temporarily paused.' }) : t(ROOM_MESSAGES[problem])}{poll.error && !fatal && <button type="button" className="btn btn-secondary ms-2" onClick={poll.refresh}>{t({ ar: 'أعد الاتصال', en: 'Reconnect' })}</button>}</Notice>}
         {fatal ? <button type="button" className="btn btn-secondary self-start" onClick={onLeave}>{t({ ar: 'ارجع للانضمام', en: 'Back to joining' })}</button>
           : view && pack ? <>
-            {view.meta.phase !== 'lobby' && <ChainProgress steps={CLASS_STEPS.map((step) => step.label)} current={classStep(view.meta.phase)} />}
+            {view.meta.phase !== 'lobby' && <ChainProgress steps={stepsFor(view.meta).map((step) => step.label)} current={Math.max(0, stepsFor(view.meta).findIndex((step) => step.phases.includes(view.meta.phase)))} />}
             <ClassTaskView key={view.meta.phase + ':' + view.meta.experimentId} view={view} send={send} busy={busy || !!poll.error} />
           </> : !problem && <Loading />}
       </div>
@@ -146,6 +146,7 @@ function ClassTaskView({ view, send, busy }: { view: StudentRoomView; send: (op:
       {op === 'explain' && !previous && <PhenomenonPreview pack={pack} />}
       {/* in class the solo-lesson lines would praise correctness or promise a test that the teacher has not opened yet */}
       <NoorSays text={!previous ? t(pack.question) : needsMore ? previous.diagnosis.noor
+        : isQuickNow(view.meta) ? t({ ar: 'فهمت فكرتك وسجّلتها. المعلّم رح يشوف أفكار الصف ويقرّر الخطوة الجاية.', en: 'I understood your idea and saved it. The teacher will look at the class ideas and decide the next step.' })
         : t({ ar: 'فهمت فكرتك وسجّلتها. رح نفحص الأفكار سوا مع الصف.', en: 'I understood your idea and saved it. We will test the ideas together as a class.' })} />
       {previous && <div className="card stack">
         <p dir="auto">{previous.text}</p>

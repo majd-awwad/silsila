@@ -11,6 +11,7 @@ import type { L } from '../../../contracts';
 import { useI18n } from '../../../i18n';
 import { Icon } from '../../../ui/icons';
 import type { IconName } from '../../../ui/icons';
+import { learnersLabel } from '../logic/labels';
 import type { RoomTabProps } from './types';
 
 const NEEDS: { kind: GroupKind; title: L; icon: IconName }[] = [
@@ -22,7 +23,7 @@ const NEEDS: { kind: GroupKind; title: L; icon: IconName }[] = [
 ];
 
 export function NeedsMap({ pack, records, view }: Pick<RoomTabProps, 'pack' | 'records' | 'view'>) {
-  const { t, n } = useI18n();
+  const { t, n, lang } = useI18n();
   const groups = interventionGroups(pack, records);
   const [open, setOpen] = useState<string | null>(null);
   const alias = new Map(view.participants.map((p) => [p.id, p.alias]));
@@ -54,7 +55,7 @@ export function NeedsMap({ pack, records, view }: Pick<RoomTabProps, 'pack' | 'r
       })}
     </div>
     {picked && <section className="card stack" aria-live="polite">
-      <h3 className="subtitle">{t(picked.title)} · {t({ ar: `${n(picked.members.length)} طلاب`, en: `${picked.members.length} learners` })}</h3>
+      <h3 className="subtitle">{t(picked.title)} · {learnersLabel(lang, picked.members.length, n)}</h3>
       <p className="help">{picked.members.map((id) => alias.get(id) ?? '').join(' · ')}</p>
       {quotes.length > 0 && <div className="stack !gap-1">
         <strong>{t({ ar: 'الدليل من كلامهم', en: 'Evidence from their words' })}</strong>
