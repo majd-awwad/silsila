@@ -78,3 +78,14 @@
   .live-studio-draft > :not(.live-studio-print) { display:none!important; }
   .live-studio-print { display:block; white-space:pre-wrap; unicode-bidi:plaintext; }
 }
+
+/* the class map re-read as learning needs: the columns settle in from the middle; no motion when the user asks for less */
+.needs-map { display:grid; grid-template-columns:repeat(auto-fit,minmax(13rem,1fr)); gap:.75rem; }
+.needs-col.is-empty { opacity:.55; }
+.needs-item { justify-content:space-between; inline-size:100%; text-align:start; }
+.needs-switch { display:flex; }
+.needs-enter .needs-col { animation:needs-in .45s cubic-bezier(.2,.8,.2,1) both; }
+.needs-enter .needs-col:nth-child(2) { animation-delay:.05s; } .needs-enter .needs-col:nth-child(3) { animation-delay:.1s; }
+.needs-enter .needs-col:nth-child(4) { animation-delay:.15s; } .needs-enter .needs-col:nth-child(5) { animation-delay:.2s; }
+@keyframes needs-in { from { opacity:0; transform:translateY(14px) scale(.96); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .needs-enter .needs-col { animation:none; } }

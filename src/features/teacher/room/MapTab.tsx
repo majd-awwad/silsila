@@ -9,6 +9,7 @@ import { useI18n } from '../../../i18n';
 import { ReasonChain } from '../../../ui/Evidence';
 import { EmptyState, Notice, Segmented } from '../../../ui/kit';
 import { MindMap } from '../viz/MindMap';
+import { NeedsMap } from './NeedsMap';
 import { Shape } from '../viz/Shape';
 import { SectionTitle } from '../components/ui';
 import { SHAPE_WORD, groupShape, groupTitle } from '../logic/labels';
@@ -80,6 +81,8 @@ export function MapTab(props: RoomTabProps) {
   const { pack, records, view } = props;
   const { t } = useI18n();
   const [which, setWhich] = useState<'initial' | 'revised'>('initial');
+  // after the explanations are in and the class has moved on, the useful question is what each learner needs next
+  const [lens, setLens] = useState<'thinking' | 'needs'>(() => (atLeast(props.view.meta.phase, 'insight') || props.view.meta.closed ? 'needs' : 'thinking'));
   const [selected, setSelected] = useState<string | null>(null);
   const anyRevised = records.some((r) => revisedDiagnosis(r));
   const shown = anyRevised ? which : 'initial';
@@ -98,6 +101,11 @@ export function MapTab(props: RoomTabProps) {
       >
         {t({ ar: 'خريطة تفكير الصف', en: 'Collective Mind Map' })}
       </SectionTitle>
+      {records.length > 0 && <div className="needs-switch">
+        <Segmented label={t({ ar: 'طريقة العرض', en: 'View' })} value={lens} onChange={setLens}
+          options={[{ id: 'thinking', label: t({ ar: 'مجموعات التفكير', en: 'Thinking groups' }) }, { id: 'needs', label: t({ ar: 'احتياجات التعلّم', en: 'Learning needs' }) }]} />
+      </div>}
+      {lens === 'needs' && records.length > 0 ? <div className="needs-enter" key="needs"><NeedsMap pack={pack} records={records} view={view} /></div> : <>
       {!onScreen && records.length > 0 && <Notice tone="warn">{t({ ar: 'معاينة إلكم: الخريطة لسا مش على شاشة العرض.', en: 'Preview for you: the map is not on the projector yet.' })}</Notice>}
       {groups.length ? (
         <>
@@ -110,6 +118,7 @@ export function MapTab(props: RoomTabProps) {
           {t({ ar: 'أول ما حدا ينضم ويشرح، بتظهر فكرته هون.', en: 'As soon as someone joins and explains, their idea appears here.' })}
         </EmptyState>
       )}
+      </>}
     </div>
   );
 }
