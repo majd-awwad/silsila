@@ -332,8 +332,10 @@ export function studentView(pack: ConceptPack, data: RoomData, participantId: st
     agg.groups = agg.revisedGroups = agg.transitions = null;
     if (agg.result) agg.result.byGroup = [];
   }
-  // the diagnosis a learner sees carries their own words and Noor's line, not the teacher's analysis
-  return { role: 'student', version: versionOf(data), meta: publicMeta(data.meta), me, agg };
+  // the diagnosis a learner sees carries their own words and Noor's line, not the teacher's analysis: the teacher's
+  // reclassification stays on the teacher's side
+  const own = { ...me, record: { ...me.record, events: me.record.events.filter((e) => e.type !== 'review') } };
+  return { role: 'student', version: versionOf(data), meta: publicMeta(data.meta), me: own, agg };
 }
 
 export function viewFor(pack: ConceptPack, data: RoomData, role: RoomView['role'], participantId?: string): RoomView | null {

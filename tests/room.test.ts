@@ -310,3 +310,16 @@ describe('teacher review of a classification', () => {
     expect(groupsOfRoom(d).map((g) => g.key)).not.toContain(a);
   });
 });
+
+describe('teacher review stays private', () => {
+  const pack = getPack('condensation');
+  it('is not in the learner view or the screen view', () => {
+    const [a, b] = wrongIdeas(pack);
+    let d = goto(pack, classroom(pack), 'explain');
+    d = explain(pack, d, 1, a);
+    d = teach(pack, d, { type: 'review', participantId: 'pid-secret-1', outcome: 'idea', ideaId: b });
+    expect(JSON.stringify(studentView(pack, d, 'pid-secret-1'))).not.toContain('"review"');
+    expect(JSON.stringify(screenView(pack, d))).not.toContain('"review"');
+    expect(JSON.stringify(teacherView(d))).toContain('"review"');
+  });
+});
