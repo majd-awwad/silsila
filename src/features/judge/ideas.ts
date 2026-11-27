@@ -44,10 +44,10 @@ export const IDEAS: VisionIdea[] = [
     missing: { ar: 'تجربتها مع معلّمين حقيقيين.', en: 'Trying it with real teachers.' },
   },
   {
-    n: 5, status: 'vision', route: null,
+    n: 5, status: 'mini', route: '/teacher/hw',
     title: { ar: 'واجب منزلي مستقل', en: 'Independent homework' },
-    have: { ar: 'بطاقات المتابعة بتعطي رابط الدرس الفردي وسؤال تحقق، بس ما في «واجب» بموعد تسليم.', en: 'Follow-up cards give the individual lesson link and a check question, but there is no «assignment» with a due date.' },
-    missing: { ar: 'تسليم بيوصل للمعلّم. تخزين الغرف حاليا بالذاكرة وبينتهي بعد ٦ ساعات، فما بيصلح لواجب. بدّه تخزين دائم وصلاحيات.', en: 'A submission that reaches the teacher. Room storage is in memory and expires after 6 hours, so it does not suit homework. It needs durable storage and permissions.' },
+    have: { ar: 'المعلّم بينشئ واجب من حزمة بموعد تسليم ورابط. الطالب بيعمل الدرس الفردي على جهازه وبيسلّم، والأدلة (أول شرح، التغيّر، الجواب المستقل) بتوصل للمعلّم. بعد الموعد بيقفل التسليم بس. مبني على تخزين الصف المحفوظ بملف.', en: 'The teacher makes a homework from a pack with a due time and a link. The learner does the individual lesson on their own device and hands in; the evidence (first explanation, change, independent answer) reaches the teacher. After the due time only hand-in closes. Built on the file-backed room storage.' },
+    missing: { ar: 'الأدلة بتجي من جهاز الطالب، فما بيمنع النسخ ولا الغش. التخزين ملف على لابتوب واحد، مش خدمة دائمة. بدّه حسابات وصلاحيات وتخزين سحابي لاستعمال فعلي.', en: 'The evidence comes from the learner device, so it does not prevent copying or cheating. Storage is a file on one laptop, not a durable service. Real use needs accounts, permissions and cloud storage.' },
   },
   {
     n: 6, status: 'mini', route: '/teacher/studio',
@@ -56,10 +56,10 @@ export const IDEAS: VisionIdea[] = [
     missing: { ar: 'رفع صور وPDF، ومراجعة جماعية للمسودات.', en: 'Uploading images and PDFs, and shared review of drafts.' },
   },
   {
-    n: 7, status: 'vision', route: null,
+    n: 7, status: 'mini', route: '/learn/condensation',
     title: { ar: 'وضع استمرارية التعليم في الأزمات', en: 'Learning Continuity Mode' },
-    have: { ar: 'موجود جزء: التطبيق بيشتغل بقواعد احتياطية بدون موديل، الجلسات محفوظة على الجهاز، ومشهد خفيف ثنائي الأبعاد (?q=low).', en: 'Partly there: the app runs on offline rules without a model, sessions are saved on the device, and a light 2D scene exists (?q=low).' },
-    missing: { ar: 'Offline-first كامل: تنزيل مسبق، تشغيل بدون اتصال، ومزامنة آمنة مع المعلّم. هذا مش دعم كامل للعمل بدون اتصال، وما بيحل مشكلة الكهرباء أو الأجهزة.', en: 'Full offline-first: pre-download, running offline and safe sync with the teacher. This is not full offline support and does not solve electricity or device shortages.' },
+    have: { ar: 'نسخة مصغّرة بدون service worker: لو انقطع الاتصال الدرس الفردي بيكمّل بالقواعد المحلية مع شارة «بدون اتصال»، والإرسالات الفاشلة (جواب بالصف الحي أو تسليم واجب) بتنحفظ بطابور محلي وبتنبعت مرة وحدة لما يرجع الاتصال. الصف الحي محفوظ بملف وبيضل بعد إعادة تشغيل السيرفر.', en: 'A smaller version without a service worker: if the connection drops, the individual lesson goes on with local rules and an «offline» badge, and failed sends (a live-class answer or a homework hand-in) wait in a local queue and go out once when the connection returns. The live room is saved to a file and survives a server restart.' },
+    missing: { ar: 'تنزيل الدروس مسبقاً والعمل الكامل بدون إنترنت لسا رؤية (بدّه service worker ومزامنة آمنة). ما بيحل مشكلة الكهرباء أو الأجهزة. جرّبناه بمحاكاة قطع الشبكة بالمتصفح، مش بقطع حقيقي.', en: 'Pre-downloading lessons and fully offline work are still vision (they need a service worker and safe sync). It does not solve electricity or device shortages. We tried it with a simulated network cut in the browser, not a real outage.' },
   },
 ];
 
