@@ -8,6 +8,7 @@ const StudentApp = lazy(() => import('./features/student/StudentApp').then((m) =
 const JoinApp = lazy(() => import('./features/join/JoinApp').then((m) => ({ default: m.JoinApp })));
 const TeacherApp = lazy(() => import('./features/teacher/TeacherApp').then((m) => ({ default: m.TeacherApp })));
 const ScreenApp = lazy(() => import('./features/screen/ScreenApp').then((m) => ({ default: m.ScreenApp })));
+const Passport = lazy(() => import('./features/passport/Passport').then((m) => ({ default: m.Passport })));
 const JudgeApp = lazy(() => import('./features/judge/JudgeApp').then((m) => ({ default: m.JudgeApp })));
 
 function NotFound() {
@@ -21,7 +22,7 @@ function NotFound() {
   );
 }
 
-/** #/ · #/learn/:pack? · #/join/:code? · #/teacher/… · #/screen/:code · #/judge */
+/** #/ · #/learn/:pack? · #/join/:code? · #/teacher/… · #/screen/:code · #/judge · #/passport */
 export default function App() {
   const { path } = useRoute();
   const [area, ...rest] = path;
@@ -33,6 +34,7 @@ export default function App() {
       case 'teacher': return <TeacherApp path={rest} />;
       case 'screen': return <ScreenApp code={rest[0]?.toUpperCase() ?? null} />;
       case 'judge': return <JudgeApp path={rest} />;
+      case 'passport': return <Passport />;
       default: return <NotFound />;
     }
   };

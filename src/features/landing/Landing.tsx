@@ -96,6 +96,7 @@ export function Landing() {
               <p>{t(p.note)}</p>
             </article>)}
           </div>
+          <p><a className="btn btn-secondary btn-sm" href={href('/passport')}>{t({ ar: 'جواز تعلّمي (على هالجهاز)', en: 'My learning passport (this device)' })}</a></p>
           <p className="muted text-[14px]">{t({ ar: 'علوم ورياضيات، صفوف ٣–٦ حسب الدرس. ست حزم مفاهيم، وما بنادّعي تغطية المنهاج.', en: 'Science and mathematics, grades 3–6 depending on the lesson. Six concept packs; we do not claim curriculum coverage.' })}</p>
         </section>
 
